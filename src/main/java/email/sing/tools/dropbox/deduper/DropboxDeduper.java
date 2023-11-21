@@ -25,7 +25,9 @@ public class DropboxDeduper {
 	private static final String appSecret = "nn93eef34q21gtf";
 	private static DbxClientV2 dropboxClient;
 
-    private Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
+	String newFolderName = "/Duplicate Files";
+
+    private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
 
 	public void init() throws Exception {
 		printGreeting();
@@ -36,19 +38,25 @@ public class DropboxDeduper {
 
 	public void run() throws Exception {
 		Scanner scan = new Scanner(System.in);
-		String newFolderName = "Duplicate Files";
 
 		System.out.println("Please enter starting path for de-duplication here: ");
-		String startPath = scan.nextLine();
+		String startPath = scan.nextLine().toLowerCase();
 
 		System.out.println("Would you like to de-duplicate only this folder or all sub-folders? (y/n): ");
-		String withRecursive = scan.nextLine();
-		boolean recursive;
+		String withRecursive = scan.nextLine().toLowerCase();
+
 		if (withRecursive.startsWith("y")) {
 			populateMap(getFiles(startPath, true));
 		} else populateMap(getFiles(startPath));
 
-		moveFilesToFolder(fileMap, newFolderName);
+		System.out.println("Would you like to delete these files? (y/n):");
+		String deleteBoolean = scan.nextLine();
+
+		if (deleteBoolean.startsWith("y")) {
+			moveFilesToFolder(fileMap, newFolderName, true);
+		} else moveFilesToFolder(fileMap, newFolderName, false);
+
+		scan.close();
 	}
 
     private void printGreeting() {
@@ -205,7 +213,7 @@ public class DropboxDeduper {
 	}
 
 	// Create a new folder to move duplicate files to.
-	public static void createNewFolder(String newFolderName) {
+	private static void createNewFolder(String newFolderName) {
 		try {
 			CreateFolderResult folderResult = dropboxClient.files().createFolderV2("/" + newFolderName + " ");
 			System.out.println("Folder created successfully: " + folderResult.getMetadata().getPathDisplay());
@@ -215,7 +223,7 @@ public class DropboxDeduper {
 		}
 	}
 
-	public static void moveFilesToFolder(Map<String, List<FileMetadata>> fileMap, String newFolderName) throws RelocationErrorException, DbxException, GetMetadataErrorException {
+	private static void moveFilesToFolder(Map<String, List<FileMetadata>> fileMap, String newFolderName, boolean delete) throws RelocationErrorException, DbxException, GetMetadataErrorException {
 		createNewFolder(newFolderName);
 
 		for (String hashCode : fileMap.keySet()) {
@@ -227,6 +235,19 @@ public class DropboxDeduper {
 
 					dropboxClient.files().moveV2(fromPath, toPath);
 				}
+			}
+		}
+		if (delete) {
+			deleteDuplicateFiles();
+		}
+	}
+
+	// Delete all files in the "Duplicate Files" folder, must have moved them into the folder first.
+	private static void deleteDuplicateFiles() throws DeleteErrorException, DbxException{
+		DbxUserFilesRequests fileRequests = dropboxClient.files();
+		for (String key : fileMap.keySet()) {
+			for (FileMetadata file : fileMap.get(key)) {
+				fileRequests.deleteV2(file.getPathDisplay());
 			}
 		}
 	}

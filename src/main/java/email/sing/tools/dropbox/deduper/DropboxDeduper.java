@@ -35,19 +35,29 @@ public class DropboxDeduper {
 	}
 
 	public void run() throws Exception {
+		Scanner scan = new Scanner(System.in);
 		String newFolderName = "Duplicate Files";
 
-		populateMap(getFiles("/Family Room/Photos", true));
+		System.out.println("Please enter starting path for de-duplication here: ");
+		String startPath = scan.nextLine();
+
+		System.out.println("Would you like to de-duplicate only this folder or all sub-folders? (y/n): ");
+		String withRecursive = scan.nextLine();
+		boolean recursive;
+		if (withRecursive.startsWith("y")) {
+			populateMap(getFiles(startPath, true));
+		} else populateMap(getFiles(startPath));
+
 		moveFilesToFolder(fileMap, newFolderName);
 	}
 
     private void printGreeting() {
-        System.out.println("--------------Dropbox Deduper--------------");
+        System.out.println("--------------Dropbox De-duper--------------");
     }
 
 	/*
 	 * Prints the name of all files in the path
-	 * If recursive is true, do this recursively for all subfolders
+	 * If recursive is true, do this recursively for all sub-folders
 	 */
     private void listFiles(String path, boolean recursive) {
     	try {
@@ -107,20 +117,13 @@ public class DropboxDeduper {
 		return "";
 	}
 
-	public static void refresh() throws DbxException{
-		try {
-			DbxRefreshResult r = dropboxClient.refreshAccessToken();
-		}
-		catch (DbxException e) {
-			System.out.println(e);
-		}
-	}
-
+	// Return the access token to be used in the DbxClientV2.
 	private static String getAccessCode(String authorizeUrl) {
 		Scanner scan = new Scanner(System.in);
+
 		System.out.println("1. Go to " + authorizeUrl);
-		System.out.println("2. Click \"Allow\".");
-		System.out.println("3. Copy the authorization code.");
+		System.out.println("2. Click \"Allow\"");
+		System.out.println("3. Copy the authorization code");
 		System.out.print("Enter the authorization code here: ");
 		String accessCode = scan.nextLine();
 		scan.close();
@@ -168,18 +171,21 @@ public class DropboxDeduper {
 		fileMap = new HashMap<>();
 	    for (Metadata entry : entries) {
 	    	if (entry instanceof FileMetadata) {
+
 	    		// fileMap.get(fileEntry.getContentHash() - searches map for the hashcode of the file entry.
 	    		FileMetadata fileEntry = (FileMetadata) entry;
 	    		if (fileMap.get(fileEntry.getContentHash()) == null) {
-	    			List<FileMetadata> duplicateFiles = new ArrayList<>();
+	    			List<FileMetadata> duplicateFiles = new LinkedList<>();
 	    			duplicateFiles.add(fileEntry);
 	    		 	fileMap.put(fileEntry.getContentHash(), duplicateFiles);
 	    		} 
-	    		else if (fileEntry.getSize() == fileMap.get(fileEntry.getContentHash()).get(0).getSize()) {
+	    		else if (fileMap.containsKey(fileEntry.getContentHash())
+						&& fileEntry.getSize() == fileMap.get(fileEntry.getContentHash()).get(0).getSize()) {
 	    			fileMap.get(fileEntry.getContentHash()).add(fileEntry);
 	    		}
 	    	}
 	    }
+
 	    // Remove any non-duplicates
 	    Set<String> nonDuplicateFileHashCodes = new HashSet<String>();
 	    nonDuplicateFileHashCodes.addAll(fileMap.keySet());
@@ -188,8 +194,17 @@ public class DropboxDeduper {
 	    		fileMap.remove(key);
 	    	}
 	    }
+
+		// Remove the first file in each of the linked list with duplicates
+		// to keep an original file (not remove EVERYTHING).
+		for (String key : nonDuplicateFileHashCodes) {
+			if (fileMap.get(key).size() <= 1) {
+				fileMap.get(key).remove(0);
+			}
+		}
 	}
 
+	// Create a new folder to move duplicate files to.
 	public static void createNewFolder(String newFolderName) {
 		try {
 			CreateFolderResult folderResult = dropboxClient.files().createFolderV2("/" + newFolderName + " ");
@@ -222,10 +237,7 @@ public class DropboxDeduper {
 		for (String hashCode : fileMap.keySet()) {
 			List<FileMetadata> duplicateFiles = fileMap.get(hashCode);
 			for (int i = 0; i < duplicateFiles.size(); i++) {
-				if (i == 0) {
-					writer.write("+" + duplicateFiles.get(i).getPathDisplay() + ", File Size: " + duplicateFiles.get(i).getSize() + "\n");
-				} else
-				writer.write("-" +duplicateFiles.get(i).getPathDisplay() + ", File Size: " + duplicateFiles.get(i).getSize() + "\n");
+					writer.write(duplicateFiles.get(i).getPathDisplay() + ", File Size: " + duplicateFiles.get(i).getSize() + "\n");
 			}
 			writer.write("\n");
 		}
@@ -238,7 +250,7 @@ public class DropboxDeduper {
 		String fileName = "Duplicate Files - " + myDateString + ".txt";
 		
 		try (InputStream in = new FileInputStream("Duplicate Files")) {
-            FileMetadata metadata = dropboxClient.files().uploadBuilder("/Temp/" + fileName)
+            dropboxClient.files().uploadBuilder("/Temp/" + fileName)
                 .uploadAndFinish(in);
         }
         System.out.println("Finished Uploading: " + fileName);

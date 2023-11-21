@@ -1,7 +1,6 @@
 package email.sing.tools.dropbox.deduper;
 
 import com.dropbox.core.*;
-import com.dropbox.core.oauth.DbxRefreshResult;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
 import com.dropbox.core.v2.users.FullAccount;
@@ -45,16 +44,12 @@ public class DropboxDeduper {
 		System.out.println("Would you like to de-duplicate only this folder or all sub-folders? (y/n): ");
 		String withRecursive = scan.nextLine().toLowerCase();
 
-		if (withRecursive.startsWith("y")) {
-			populateMap(getFiles(startPath, true));
-		} else populateMap(getFiles(startPath));
+		populateMap(getFiles(startPath, withRecursive.startsWith("y")));
 
 		System.out.println("Would you like to delete these files? (y/n):");
 		String deleteBoolean = scan.nextLine();
 
-		if (deleteBoolean.startsWith("y")) {
-			moveFilesToFolder(fileMap, newFolderName, true);
-		} else moveFilesToFolder(fileMap, newFolderName, false);
+        moveFilesToFolder(fileMap, newFolderName, deleteBoolean.startsWith("y"));
 
 		scan.close();
 	}
@@ -178,11 +173,10 @@ public class DropboxDeduper {
 	private void populateMap(List<Metadata> entries) {
 		fileMap = new HashMap<>();
 	    for (Metadata entry : entries) {
-	    	if (entry instanceof FileMetadata) {
+	    	if (entry instanceof FileMetadata fileEntry) {
 
-	    		// fileMap.get(fileEntry.getContentHash() - searches map for the hashcode of the file entry.
-	    		FileMetadata fileEntry = (FileMetadata) entry;
-	    		if (fileMap.get(fileEntry.getContentHash()) == null) {
+	    		// fileMap.get(fileEntry.getContentHash()) - searches map for the hashcode of the file entry.
+				if (fileMap.get(fileEntry.getContentHash()) == null) {
 	    			List<FileMetadata> duplicateFiles = new LinkedList<>();
 	    			duplicateFiles.add(fileEntry);
 	    		 	fileMap.put(fileEntry.getContentHash(), duplicateFiles);
@@ -195,8 +189,7 @@ public class DropboxDeduper {
 	    }
 
 	    // Remove any non-duplicates
-	    Set<String> nonDuplicateFileHashCodes = new HashSet<String>();
-	    nonDuplicateFileHashCodes.addAll(fileMap.keySet());
+        Set<String> nonDuplicateFileHashCodes = new HashSet<String>(fileMap.keySet());
 	    for (String key : nonDuplicateFileHashCodes) {
 	    	if (fileMap.get(key).size() == 1) {
 	    		fileMap.remove(key);

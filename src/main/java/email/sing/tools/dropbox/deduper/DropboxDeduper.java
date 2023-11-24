@@ -8,9 +8,14 @@ import com.dropbox.core.v2.users.FullAccount;
 import java.io.*;
 import java.util.*;
 import java.text.SimpleDateFormat;
+import javax.swing.JOptionPane;
 
 public class DropboxDeduper {
     private static final String ACCESS_TOKEN;
+
+	private static String delete;
+	private static String withRecursive;
+	private static String startPath;
 
 	static {
 		try {
@@ -38,25 +43,34 @@ public class DropboxDeduper {
 	public void run() throws Exception {
 		Scanner scan = new Scanner(System.in);
 
-		System.out.println("Please enter starting path for de-duplication here: ");
-		String startPath = scan.nextLine().toLowerCase();
-
-		System.out.println("Would you like to de-duplicate only this folder or all sub-folders? (y/n): ");
-		String withRecursive = scan.nextLine().toLowerCase();
+		userPreferences(scan);
 
 		populateMap(getFiles(startPath, withRecursive.startsWith("y")));
 
-		System.out.println("Would you like to delete these files? (y/n):");
-		String deleteBoolean = scan.nextLine();
-
-        moveFilesToFolder(fileMap, newFolderName, deleteBoolean.startsWith("y"));
-
+		if (delete.startsWith("m")) {
+			deleteDuplicateFiles();
+		} else if (delete.startsWith("m")) {
+			moveFilesToFolder(fileMap, newFolderName);
+		}
 		scan.close();
 	}
 
     private void printGreeting() {
         System.out.println("--------------Dropbox De-duper--------------");
     }
+
+	private static void userPreferences(Scanner scan) {
+		//System.out.println("Please enter starting path for de-duplication here: ");
+		//String startPath = scan.nextLine().toLowerCase();
+		//JOptionPane input = new JOptionPane();
+		//input.
+
+		//System.out.println("Would you like to de-duplicate only this folder or all sub-folders? (y/n): ");
+		//String withRecursive = scan.nextLine().toLowerCase();
+
+		//System.out.println("Would you like to delete or move these files? (d/m):");
+		//String deleteBoolean = scan.nextLine();
+	}
 
 	/*
 	 * Prints the name of all files in the path
@@ -216,7 +230,7 @@ public class DropboxDeduper {
 		}
 	}
 
-	private static void moveFilesToFolder(Map<String, List<FileMetadata>> fileMap, String newFolderName, boolean delete) throws RelocationErrorException, DbxException, GetMetadataErrorException {
+	private static void moveFilesToFolder(Map<String, List<FileMetadata>> fileMap, String newFolderName) throws RelocationErrorException, DbxException, GetMetadataErrorException {
 		createNewFolder(newFolderName);
 
 		for (String hashCode : fileMap.keySet()) {
@@ -229,9 +243,6 @@ public class DropboxDeduper {
 					dropboxClient.files().moveV2(fromPath, toPath);
 				}
 			}
-		}
-		if (delete) {
-			deleteDuplicateFiles();
 		}
 	}
 

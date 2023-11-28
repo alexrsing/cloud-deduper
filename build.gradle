@@ -29,7 +29,7 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass = 'email.sing.tools.dropbox.deduper.DropboxDeduper'
+    mainClass = 'email.sing.tools.dropbox.deduper.CloudDeduper'
 }
 
 run {

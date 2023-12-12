@@ -55,21 +55,19 @@ public class DropboxDeduper {
 	}
 
 	public void run() throws Exception {
-		String newFolderName = getFolderName();
-
-		int option = userPreferences();
+		int option = getUserPreferences();
 		if (option != -1) {
 			populateMap(getFiles(startPath, withRecursive));
 
 			if (option == 0 && confirmDelete()) {
 				deleteDuplicateFiles();
 			} else if (option == 1) {
-				moveFilesToFolder(newFolderName);
+				moveFilesToFolder();
 			}
 			else if (option == 2) {
 				moveListToFile();
 			}
-			fileDialog();
+			displayFileDialog();
 		}
 	}
 
@@ -83,7 +81,7 @@ public class DropboxDeduper {
 	/*
 	 * Ask the user for their preferences of what happens and where to find the files.
 	 */
-	private static int userPreferences() {
+	private static int getUserPreferences() {
 		String title = "Dropbox De-duplicator";
 
 		// While the startPath is null or does not exist, keep asking.
@@ -295,7 +293,7 @@ public class DropboxDeduper {
 		}
 	}
 
-	private static void fileDialog() throws DbxException {
+	private static void displayFileDialog() throws DbxException {
 		JOptionPane.showMessageDialog(null, getFileMapSize() + " file(s) found");
 	}
 
@@ -304,8 +302,7 @@ public class DropboxDeduper {
 	 */
 	private static void createNewFolder(String newFolderName) {
 		try {
-			CreateFolderResult folderResult = dropboxClient.files().createFolderV2("/" + newFolderName);
-			System.out.println("Folder created successfully: " + folderResult.getMetadata().getPathDisplay());
+			dropboxClient.files().createFolderV2(newFolderName);
 		}
 		catch (Exception e) {
 			System.err.println("Error creating folder: " + e);
@@ -316,27 +313,33 @@ public class DropboxDeduper {
 	 * Appends the current date to the duplicate folder name for a specific name.
 	 */
 	private static String getFolderName() {
-		return "Duplicate Files Folder " + getCurrentDate();
+		return "/Temp/Duplicate Files Folder - " + getCurrentDate();
 	}
 
 	/*
 	 * Move files to the new folder that is created.
 	 */
-	private static void moveFilesToFolder(String newFolderName) throws DbxException {
+	private static void moveFilesToFolder() throws DbxException {
+		String newFolderName = getFolderName();
 		createNewFolder(newFolderName);
 
 		for (String hashCode : fileMap.keySet()) {
 			List<FileMetadata> files = fileMap.get(hashCode);
 			for (FileMetadata file : files) {
+
 				if (file != null) {
 					String fromPath = file.getPathDisplay();
-					String toPath = "/" + newFolderName;
-
-					MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath).
-							withAllowOwnershipTransfer(true).
-							withAllowSharedFolder(true).
-							withAutorename(false);
-					moveV2Builder.start();
+					String toPath = newFolderName + "/" + file.getName();
+					try {
+						MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
+								.withAllowSharedFolder(true)
+								.withAllowOwnershipTransfer(true)
+								.withAutorename(false);
+						moveV2Builder.start();
+					}
+					catch (RelocationErrorException | IllegalArgumentException e) {
+						System.err.println("Error: " + e);
+					}
 				}
 			}
 		}

@@ -59,15 +59,16 @@ public class DropboxDeduper {
 		if (option != -1) {
 			populateMap(getFiles(startPath, withRecursive));
 
-			if (option == 0 && confirmDelete()) {
+			if (option == 0 && listDeletedFiles() && confirmDelete()) {
 				deleteDuplicateFiles();
 			} else if (option == 1) {
 				moveFilesToFolder();
+				displayFileDialog();
 			}
 			else if (option == 2) {
 				moveListToFile();
+				displayFileDialog();
 			}
-			displayFileDialog();
 		}
 	}
 
@@ -113,9 +114,17 @@ public class DropboxDeduper {
 	 * If the user chooses to delete, they must confirm before the program will run.
 	 */
 	private static boolean confirmDelete() {
-		String[] confirmOption = {"Yes,", "No", "Cancel"};
+		String[] confirmOption = {"Yes", "No", "Cancel"};
 		int option = JOptionPane.showOptionDialog(null, "Are you sure you want to delete these files?", "Dropbox De-duplicator",
 				2, JOptionPane.YES_NO_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
+
+		return option == 0;
+	}
+
+	private static boolean listDeletedFiles() {
+		String[] confirmOption = {"Ok", "Cancel"};
+		int option = JOptionPane.showOptionDialog(null, "Deleting:\n" + listFileNamesString(), "Dropbox De-duplicator",
+				2, JOptionPane.OK_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
 
 		return option == 0;
 	}
@@ -124,14 +133,23 @@ public class DropboxDeduper {
 	 * Prints the name of all files in the path
 	 * If recursive is true, do this recursively for all sub-folders
 	 */
-    private static void listFiles(String path, boolean recursive) {
-    	try {
-			System.out.println("\nFiles in \"" + path + "\":");
-			printEntries(getFiles(path, recursive));
-    	} catch (Exception e) {
-    		System.err.println("Error printing \"" + path + "\": " + e);
-    	}    	
+    private static List<String> listFileNames() {
+		List<FileMetadata> list = new LinkedList<>();
+		for (String key : fileMap.keySet()) {
+			list.addAll(fileMap.get(key));
+		}
+		List<String> entryNames = new LinkedList<>();
+		list.forEach(f -> entryNames.add(f.getName()));
+		return entryNames;
     }
+
+	private static String listFileNamesString() {
+		String namesString = "";
+		for (String name : listFileNames()) {
+			namesString += name + "\n";
+		}
+		return namesString;
+	}
 
 	/*
 	 * Prints the name for all metadata entries
@@ -229,7 +247,7 @@ public class DropboxDeduper {
 		ep.setBackground(label.getBackground());
 
 		// Show dialog box
-        return JOptionPane.showInputDialog(null, ep);
+        return JOptionPane.showInputDialog(null, ep, "Dropbox De-duplicator", JOptionPane.OK_CANCEL_OPTION);
 	}
 
 	 /*
@@ -278,22 +296,22 @@ public class DropboxDeduper {
 	    	}
 	    }
 
-	    // Remove any non-duplicates
         Set<String> nonDuplicateFileHashCodes = new HashSet<>(fileMap.keySet());
-	    for (String key : nonDuplicateFileHashCodes) {
-	    	if (fileMap.get(key).size() <= 1) {
-	    		fileMap.remove(key);
-	    	}
-	    }
 
 		// Remove the first file in each of the linked list with duplicates
-		// to keep an original file (not remove EVERYTHING).
-		for (String key : nonDuplicateFileHashCodes) {
-			fileMap.get(key).remove(0);
-		}
+		// to keep an original file
+	    // Remove any non-duplicates
+	    for (String key : nonDuplicateFileHashCodes) {
+	    	if (fileMap.get(key).size() == 1) {
+				fileMap.remove(key);
+			}
+			else {
+				fileMap.get(key).remove(0);
+			}
+	    }
 	}
 
-	private static void displayFileDialog() throws DbxException {
+	private static void displayFileDialog() {
 		JOptionPane.showMessageDialog(null, getFileMapSize() + " file(s) found");
 	}
 
@@ -348,7 +366,7 @@ public class DropboxDeduper {
 	/*
 	 * Delete all files in the "Duplicate Files" folder, must have moved them into the folder first.
 	 */
-	private static void deleteDuplicateFiles() throws DbxException{
+	private static void deleteDuplicateFiles() {
 		for (String key : fileMap.keySet()) {
 			for (FileMetadata file : fileMap.get(key)) {
 				try {

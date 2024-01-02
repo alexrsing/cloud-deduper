@@ -13,7 +13,9 @@ package email.sing.tools.dropbox.deduper;
 import com.dropbox.core.*;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
+import com.dropbox.core.v2.paper.Folder;
 import com.dropbox.core.v2.users.FullAccount;
+import com.opencsv.CSVWriter;
 
 import java.awt.*;
 
@@ -46,6 +48,8 @@ public class DropboxDeduper {
 	private static DbxClientV2 dropboxClient;
 
     private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
+
+	private static Map<String, FileMetadata> originalFiles;
 
 	public void init() throws Exception {
 		printGreeting();
@@ -144,11 +148,11 @@ public class DropboxDeduper {
     }
 
 	private static String listFileNamesString() {
-		String namesString = "";
+		StringBuilder namesString = new StringBuilder();
 		for (String name : listFileNames()) {
-			namesString += name + "\n";
+			namesString.append(name).append("\n");
 		}
-		return namesString;
+		return namesString.toString();
 	}
 
 	/*
@@ -278,8 +282,9 @@ public class DropboxDeduper {
 	/*
 	 * Fills map with all files from the specified path.
 	 */
-	private void populateMap(List<Metadata> entries) {
+	private static void populateMap(List<Metadata> entries) {
 		fileMap = new HashMap<>();
+		originalFiles = new HashMap<>();
 	    for (Metadata entry : entries) {
 	    	if (entry instanceof FileMetadata fileEntry) {
 
@@ -302,10 +307,11 @@ public class DropboxDeduper {
 		// to keep an original file
 	    // Remove any non-duplicates
 	    for (String key : nonDuplicateFileHashCodes) {
-	    	if (fileMap.get(key).size() == 1) {
+	    	if (fileMap.get(key).size() <= 1) {
 				fileMap.remove(key);
 			}
 			else {
+				originalFiles.put(key, fileMap.get(key).get(0));
 				fileMap.get(key).remove(0);
 			}
 	    }
@@ -331,33 +337,77 @@ public class DropboxDeduper {
 	 * Appends the current date to the duplicate folder name for a specific name.
 	 */
 	private static String getFolderName() {
-		return "/Temp/Duplicate Files Folder - " + getCurrentDate();
+		return "/Duplicate Files Folder - " + getCurrentDate();
+	}
+
+	/*
+	 * Copy the folder structure from
+	 */
+	private static void createFolderHierarchy() throws Exception {
+		String baseFolderName = getFolderName();
+		createNewFolder(baseFolderName);
+
+		List<Metadata> entries = getFiles(startPath, withRecursive);
+		List<FolderMetadata> folders = new LinkedList<>();
+		for (Metadata entry : entries) {
+			if (entry instanceof FolderMetadata) {
+				FolderMetadata folder = (FolderMetadata) entry;
+				System.out.println(baseFolderName + entry.getPathDisplay());
+				folders.add(folder);
+			}
+		}
+		for (FolderMetadata folder : folders) {
+			createNewFolder(baseFolderName + folder.getPathDisplay());
+			Thread.sleep(600);
+		}
 	}
 
 	/*
 	 * Move files to the new folder that is created.
 	 */
-	private static void moveFilesToFolder() throws DbxException {
-		String newFolderName = getFolderName();
-		createNewFolder(newFolderName);
+	private static void moveFilesToFolder() throws Exception {
+		String baseFolderName = getFolderName();
+		createFolderHierarchy();
 
 		for (String hashCode : fileMap.keySet()) {
-			List<FileMetadata> files = fileMap.get(hashCode);
-			for (FileMetadata file : files) {
+			//List<FileMetadata> files = fileMap.get(hashCode);
+			for (FileMetadata file : fileMap.get(hashCode)) {
 
 				if (file != null) {
 					String fromPath = file.getPathDisplay();
-					String toPath = newFolderName + "/" + file.getName();
+					String toPath = baseFolderName + file.getPathDisplay();
+					System.out.println(file.getPathDisplay());
 					try {
 						MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
 								.withAllowSharedFolder(true)
 								.withAllowOwnershipTransfer(true)
-								.withAutorename(false);
+								.withAutorename(true);
 						moveV2Builder.start();
+					} catch (RelocationErrorException | IllegalArgumentException e) {
+						System.err.println("Error with " + file.getPathDisplay() + ": " + e);
+						Thread.sleep(600);
+						try {
+							MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
+									.withAllowSharedFolder(true)
+									.withAllowOwnershipTransfer(true)
+									.withAutorename(false);
+							moveV2Builder.start();
+						} catch (RelocationErrorException | IllegalArgumentException ep) {
+							System.err.println("Error #2 with " + file.getPathDisplay() + ": " + ep);
+							ep.printStackTrace();
+						}
 					}
-					catch (RelocationErrorException | IllegalArgumentException e) {
-						System.err.println("Error: " + e);
-					}
+					Thread.sleep(600);
+				}
+			}
+		}
+
+		// Delete any empty folders.
+		for (Metadata entry : getFiles(baseFolderName + startPath, withRecursive)) {
+			if (entry instanceof FolderMetadata) {
+				FolderMetadata folder = (FolderMetadata) entry;
+				if (getFiles(folder.getPathDisplay(), true).size() == 0) {
+					dropboxClient.files().deleteV2(folder.getPathDisplay());
 				}
 			}
 		}
@@ -381,25 +431,44 @@ public class DropboxDeduper {
 	/*
 	 * Move list to its own file without moving the files. Used for UI.
 	 */
-	private static void moveListToFile() throws IOException, DbxException {
-		String fileName = "Duplicate Files - " + getCurrentDate() + ".txt";
+	private static void moveListToFile() {
+		// first create file object for file placed at location
+		// specified by filepath
+		File file = new File("Duplicate files log - " + getCurrentDate() + ".csv");
+		try {
+			// create FileWriter object with file as parameter
+			FileWriter outputFile = new FileWriter(file);
 
-		BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
-        
-		for (String hashCode : fileMap.keySet()) {
-			List<FileMetadata> duplicateFiles = fileMap.get(hashCode);
-			for (FileMetadata file : duplicateFiles) {
-				writer.write(file.getPathDisplay() + ", File Size: " + file.getSize() + "\n");
+			// create CSVWriter object with fileWriter object as parameter
+			CSVWriter writer = new CSVWriter(outputFile);
+
+			// Add header to csv
+			String[] header = { "DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION" };
+			writer.writeNext(header);
+
+			String[] data = new String[4];
+			for (String hashCode : fileMap.keySet()) {
+				for (FileMetadata f : fileMap.get(hashCode)) {
+					data[0] = f.getName();
+					data[1] = f.getPathLower();
+					data[2]	= originalFiles.get(hashCode).getName();
+					data[3] = originalFiles.get(hashCode).getPathLower();
+					writer.writeNext(data);
+				}
 			}
-			writer.write("\n");
+			// Close writer
+			writer.close();
+			try (InputStream in = new FileInputStream(file.getName())) {
+				dropboxClient.files().uploadBuilder("/" + file.getName())
+						.uploadAndFinish(in);
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
-		writer.close();
-
-		try (InputStream in = new FileInputStream(fileName)) {
-            dropboxClient.files().uploadBuilder("/Temp/" + fileName)
-                .uploadAndFinish(in);
-        }
-        System.out.println("Finished Uploading: " + fileName);
+		catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	/*

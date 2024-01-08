@@ -13,7 +13,6 @@ package email.sing.tools.dropbox.deduper;
 import com.dropbox.core.*;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
-import com.dropbox.core.v2.paper.Folder;
 import com.dropbox.core.v2.users.FullAccount;
 import com.opencsv.CSVWriter;
 
@@ -51,6 +50,10 @@ public class DropboxDeduper {
 
 	private static Map<String, FileMetadata> originalFiles;
 
+	private static List<FolderMetadata> folders;
+
+	private static int totalFiles;
+
 	public void init() throws Exception {
 		printGreeting();
 
@@ -67,12 +70,9 @@ public class DropboxDeduper {
 				deleteDuplicateFiles();
 			} else if (option == 1) {
 				moveFilesToFolder();
-				displayFileDialog();
 			}
-			else if (option == 2) {
-				moveListToFile();
-				displayFileDialog();
-			}
+			logDuplicateFiles();
+			displayFinalDialog();
 		}
 	}
 
@@ -90,27 +90,23 @@ public class DropboxDeduper {
 		String title = "Dropbox De-duplicator";
 
 		// While the startPath is null or does not exist, keep asking.
-		startPath = JOptionPane.showInputDialog("Please enter the start path that you want to de-duplicate (In the form /folder/subfolder):");
+		startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form folder/subfolder; Leave blank for the home directory):");
 
-		if (startPath == null) {
-			return -1;
-		}
 		String[] options = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
-		var selection = JOptionPane.showOptionDialog(null, "What would you like to do? (Select one):", title,
+		var selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title,
 				0, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
 		if (selection == -1) {
 			return -1;
 		}
 		String[] recursiveOptions = {"Cancel", "No", "Yes"};
-		int recursion = JOptionPane.showOptionDialog(null, "Would you like to do this recursively?", "Dropbox De-duplicator",
+		int recursion = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
 				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
 		withRecursive = recursion == 2;
 
 		if (recursion ==0 || recursion == -1) {
 			return -1;
 		}
-
 		return selection;
 	}
 
@@ -118,19 +114,19 @@ public class DropboxDeduper {
 	 * If the user chooses to delete, they must confirm before the program will run.
 	 */
 	private static boolean confirmDelete() {
-		String[] confirmOption = {"Yes", "No", "Cancel"};
+		String[] confirmOption = {"Cancel", "No", "Yes"};
 		int option = JOptionPane.showOptionDialog(null, "Are you sure you want to delete these files?", "Dropbox De-duplicator",
 				2, JOptionPane.YES_NO_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
 
-		return option == 0;
+		return option == 2;
 	}
 
 	private static boolean listDeletedFiles() {
-		String[] confirmOption = {"Ok", "Cancel"};
+		String[] confirmOption = {"Cancel", "Ok"};
 		int option = JOptionPane.showOptionDialog(null, "Deleting:\n" + listFileNamesString(), "Dropbox De-duplicator",
 				2, JOptionPane.OK_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
 
-		return option == 0;
+		return option == 1;
 	}
 
 	/*
@@ -155,15 +151,6 @@ public class DropboxDeduper {
 		return namesString.toString();
 	}
 
-	/*
-	 * Prints the name for all metadata entries
-	 */
-    private static void printEntries(List<Metadata> entries) {
-		for (Metadata file : entries) {
-			System.out.println(file.getName());
-		}
-    }
-
 	private static int getFileMapSize() {
 		int size = 0;
 		for (String hashcode : fileMap.keySet()) {
@@ -171,19 +158,6 @@ public class DropboxDeduper {
 		}
 		return size;
 	}
-
-	/*
-	 * Print how many files are in the folder.
-	 * If recursive is true, print the number of files including all sub-folders.
-	 */
-    private static int getFolderSize(Metadata folder, boolean recursive) {
-    	try {
-	    	return getFiles(folder.getPathLower(), recursive).size();
-    	} catch (Exception e) {
-			System.err.println("Error getting size of \"" + folder.getName() + "\": " + e);
-			return -1;
-    	}
-    }
 
 	/*
 	 * Creates a new Dropbox client to make remote calls to the Dropbox API user endpoints
@@ -224,8 +198,8 @@ public class DropboxDeduper {
 
 		// create some css from the label's font
 		StringBuffer style = new StringBuffer("font-family:" + font.getFamily() + ";");
-		style.append("font-weight:" + (font.isBold() ? "bold" : "normal") + ";");
-		style.append("font-size:" + font.getSize() + "pt;");
+		style.append("font-weight:").append(font.isBold() ? "bold" : "normal").append(";");
+		style.append("font-size:").append(font.getSize()).append("pt;");
 
 		// Dialog content with html
 		JEditorPane ep = new JEditorPane("text/html", "<html><body style=\"" + style + "\">" //
@@ -240,7 +214,7 @@ public class DropboxDeduper {
 			{
 				if (e.getEventType().equals(HyperlinkEvent.EventType.ACTIVATED)) {
 					try {
-						Desktop.getDesktop().browse(e.getURL().toURI()); // roll your own link launcher or use Desktop if J6+
+						Desktop.getDesktop().browse(e.getURL().toURI());
 					} catch (IOException | URISyntaxException ex) {
 						throw new RuntimeException(ex);
 					}
@@ -285,8 +259,12 @@ public class DropboxDeduper {
 	private static void populateMap(List<Metadata> entries) {
 		fileMap = new HashMap<>();
 		originalFiles = new HashMap<>();
+		folders = new LinkedList<>();
+		totalFiles = 0;
+
 	    for (Metadata entry : entries) {
 	    	if (entry instanceof FileMetadata fileEntry) {
+				totalFiles++;
 
 				// fileMap.get(fileEntry.getContentHash()) - searches map for the hashcode of the file entry.
 				if (!fileMap.containsKey(fileEntry.getContentHash())) {
@@ -299,6 +277,9 @@ public class DropboxDeduper {
 	    			fileMap.get(fileEntry.getContentHash()).add(fileEntry);
 	    		}
 	    	}
+			else if (entry instanceof FolderMetadata folder) {
+				folders.add(folder);
+			}
 	    }
 
         Set<String> nonDuplicateFileHashCodes = new HashSet<>(fileMap.keySet());
@@ -317,8 +298,12 @@ public class DropboxDeduper {
 	    }
 	}
 
-	private static void displayFileDialog() {
-		JOptionPane.showMessageDialog(null, getFileMapSize() + " file(s) found");
+	/*
+	 * Final dialog box in program,
+	 * tells user how many duplicates files were found out of the total number of files de-duplicated.
+	 */
+	private static void displayFinalDialog() {
+		JOptionPane.showMessageDialog(null, getFileMapSize() + " duplicate(s) found out of " + totalFiles + " files.");
 	}
 
 	/*
@@ -347,15 +332,6 @@ public class DropboxDeduper {
 		String baseFolderName = getFolderName();
 		createNewFolder(baseFolderName);
 
-		List<Metadata> entries = getFiles(startPath, withRecursive);
-		List<FolderMetadata> folders = new LinkedList<>();
-		for (Metadata entry : entries) {
-			if (entry instanceof FolderMetadata) {
-				FolderMetadata folder = (FolderMetadata) entry;
-				System.out.println(baseFolderName + entry.getPathDisplay());
-				folders.add(folder);
-			}
-		}
 		for (FolderMetadata folder : folders) {
 			createNewFolder(baseFolderName + folder.getPathDisplay());
 			Thread.sleep(600);
@@ -384,7 +360,6 @@ public class DropboxDeduper {
 								.withAutorename(true);
 						moveV2Builder.start();
 					} catch (RelocationErrorException | IllegalArgumentException e) {
-						System.err.println("Error with " + file.getPathDisplay() + ": " + e);
 						Thread.sleep(600);
 						try {
 							MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
@@ -393,7 +368,6 @@ public class DropboxDeduper {
 									.withAutorename(false);
 							moveV2Builder.start();
 						} catch (RelocationErrorException | IllegalArgumentException ep) {
-							System.err.println("Error #2 with " + file.getPathDisplay() + ": " + ep);
 							ep.printStackTrace();
 						}
 					}
@@ -403,14 +377,27 @@ public class DropboxDeduper {
 		}
 
 		// Delete any empty folders.
-		for (Metadata entry : getFiles(baseFolderName + startPath, withRecursive)) {
-			if (entry instanceof FolderMetadata) {
-				FolderMetadata folder = (FolderMetadata) entry;
-				if (getFiles(folder.getPathDisplay(), true).size() == 0) {
-					dropboxClient.files().deleteV2(folder.getPathDisplay());
+
+		getFiles(baseFolderName + startPath, withRecursive).forEach(Metadata -> {
+			if (Metadata instanceof FolderMetadata folder) {
+				try {
+					if (getFiles(folder.getPathDisplay(), true).isEmpty()) {
+						try {
+							dropboxClient.files().deleteV2(folder.getPathDisplay());
+						} catch (DbxException e) {
+							throw new RuntimeException(e);
+						}
+					}
+				} catch (Exception e) {
+					throw new RuntimeException(e);
 				}
 			}
-		}
+			try {
+				Thread.sleep(600);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		});
 	}
 
 	/*
@@ -421,6 +408,7 @@ public class DropboxDeduper {
 			for (FileMetadata file : fileMap.get(key)) {
 				try {
 					dropboxClient.files().deleteV2(file.getPathDisplay());
+					Thread.sleep(600);
 				} catch (Exception e) {
 					System.err.println("Error deleting file: " + e);
 				}
@@ -431,7 +419,7 @@ public class DropboxDeduper {
 	/*
 	 * Move list to its own file without moving the files. Used for UI.
 	 */
-	private static void moveListToFile() {
+	private static void logDuplicateFiles() {
 		// first create file object for file placed at location
 		// specified by filepath
 		File file = new File("Duplicate files log - " + getCurrentDate() + ".csv");
@@ -443,7 +431,7 @@ public class DropboxDeduper {
 			CSVWriter writer = new CSVWriter(outputFile);
 
 			// Add header to csv
-			String[] header = { "DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION" };
+			String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION"};
 			writer.writeNext(header);
 
 			String[] data = new String[4];
@@ -451,28 +439,28 @@ public class DropboxDeduper {
 				for (FileMetadata f : fileMap.get(hashCode)) {
 					data[0] = f.getName();
 					data[1] = f.getPathLower();
-					data[2]	= originalFiles.get(hashCode).getName();
+					data[2] = originalFiles.get(hashCode).getName();
 					data[3] = originalFiles.get(hashCode).getPathLower();
 					writer.writeNext(data);
 				}
 			}
+
 			// Close writer
 			writer.close();
 			try (InputStream in = new FileInputStream(file.getName())) {
-				dropboxClient.files().uploadBuilder("/" + file.getName())
-						.uploadAndFinish(in);
+					dropboxClient.files().uploadBuilder("/" + file.getName())
+							.uploadAndFinish(in);
 			}
-			catch (Exception e) {
+			catch(Exception e){
 				e.printStackTrace();
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	/*
-	 * Uses Date class to get the current date down to the second.
+	 * Uses Date class to get the current date down to the second for naming purposes.
 	 */
 	private static String getCurrentDate() {
 		Date myDate = new Date();

@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.*;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
@@ -44,15 +45,11 @@ public class DropboxDeduper {
 
 	private static final String appKey = "69rotl1nmd80etf";
 	private static final String appSecret = "nn93eef34q21gtf";
-	private static DbxClientV2 dropboxClient;
-
+	private static DbxClientV2 dropboxClient; // Client used to send requests to Dropbox
     private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
-
-	private static Map<String, FileMetadata> originalFiles;
-
-	private static List<FolderMetadata> folders;
-
-	private static int totalFiles;
+	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
+	private static List<FolderMetadata> folders; // Keep the folders that are de-duplicated through to make folder structure
+	private static int totalFiles; // Total number of files in the de-duplication path.
 
 	public void init() throws Exception {
 		printGreeting();
@@ -90,7 +87,7 @@ public class DropboxDeduper {
 		String title = "Dropbox De-duplicator";
 
 		// While the startPath is null or does not exist, keep asking.
-		startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form folder/subfolder; Leave blank for the home directory):");
+		startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\"; Leave blank for the home directory):");
 
 		String[] options = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
 		var selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title,
@@ -100,11 +97,10 @@ public class DropboxDeduper {
 			return -1;
 		}
 		String[] recursiveOptions = {"Cancel", "No", "Yes"};
-		int recursion = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
-				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
-		withRecursive = recursion == 2;
+		withRecursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
+				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]) == 2;
 
-		if (recursion ==0 || recursion == -1) {
+		if (!withRecursive) {
 			return -1;
 		}
 		return selection;
@@ -263,24 +259,40 @@ public class DropboxDeduper {
 		totalFiles = 0;
 
 	    for (Metadata entry : entries) {
-	    	if (entry instanceof FileMetadata fileEntry) {
+			if (entry instanceof FileMetadata fileEntry) {
 				totalFiles++;
 
-				// fileMap.get(fileEntry.getContentHash()) - searches map for the hashcode of the file entry.
 				if (!fileMap.containsKey(fileEntry.getContentHash())) {
-	    			List<FileMetadata> duplicateFiles = new LinkedList<>();
-	    			duplicateFiles.add(fileEntry);
-	    		 	fileMap.put(fileEntry.getContentHash(), duplicateFiles);
-	    		} 
-	    		else if (fileMap.containsKey(fileEntry.getContentHash())
-						&& fileEntry.getSize() == fileMap.get(fileEntry.getContentHash()).get(0).getSize()) {
-	    			fileMap.get(fileEntry.getContentHash()).add(fileEntry);
-	    		}
-	    	}
+					AtomicBoolean checkSize = new AtomicBoolean(true);
+					if (!fileMap.isEmpty()) {
+						fileMap.forEach((hashCode, fileList) -> {
+							fileList.forEach(FileMetadata -> {
+
+								// If the file is within two bytes of another file in the map, then it is considered a duplicate.
+								if (Math.abs(FileMetadata.getSize() - fileEntry.getSize()) <= 10) {
+									checkSize.set(false);
+									fileMap.get(hashCode).add(fileEntry);
+								}
+							});
+						});
+					}
+
+					// If the content hash does not exist in the map, and the size is not the same,
+					// then make a new entry in the map and add the file.
+					if (checkSize.get()) {
+						List<FileMetadata> duplicateFiles = new LinkedList<>();
+						duplicateFiles.add(fileEntry);
+						fileMap.put(fileEntry.getContentHash(), duplicateFiles);
+					}
+				}
+				else {
+					fileMap.get(fileEntry.getContentHash()).add(fileEntry);
+				}
+			}
 			else if (entry instanceof FolderMetadata folder) {
 				folders.add(folder);
 			}
-	    }
+		}
 
         Set<String> nonDuplicateFileHashCodes = new HashSet<>(fileMap.keySet());
 
@@ -346,13 +358,12 @@ public class DropboxDeduper {
 		createFolderHierarchy();
 
 		for (String hashCode : fileMap.keySet()) {
-			//List<FileMetadata> files = fileMap.get(hashCode);
 			for (FileMetadata file : fileMap.get(hashCode)) {
 
 				if (file != null) {
 					String fromPath = file.getPathDisplay();
 					String toPath = baseFolderName + file.getPathDisplay();
-					System.out.println(file.getPathDisplay());
+
 					try {
 						MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
 								.withAllowSharedFolder(true)
@@ -377,7 +388,6 @@ public class DropboxDeduper {
 		}
 
 		// Delete any empty folders.
-
 		getFiles(baseFolderName + startPath, withRecursive).forEach(Metadata -> {
 			if (Metadata instanceof FolderMetadata folder) {
 				try {
@@ -431,16 +441,18 @@ public class DropboxDeduper {
 			CSVWriter writer = new CSVWriter(outputFile);
 
 			// Add header to csv
-			String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION"};
+			String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "DUPLICATE FILE SIZE", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION", "ORIGINAL FILE SIZE"};
 			writer.writeNext(header);
 
-			String[] data = new String[4];
+			String[] data = new String[6];
 			for (String hashCode : fileMap.keySet()) {
 				for (FileMetadata f : fileMap.get(hashCode)) {
 					data[0] = f.getName();
 					data[1] = f.getPathLower();
-					data[2] = originalFiles.get(hashCode).getName();
-					data[3] = originalFiles.get(hashCode).getPathLower();
+					data[2] = f.getSize() + " bytes";
+					data[3] = originalFiles.get(hashCode).getName();
+					data[4] = originalFiles.get(hashCode).getPathLower();
+					data[5] = originalFiles.get(hashCode).getSize() + " bytes";
 					writer.writeNext(data);
 				}
 			}

@@ -61,7 +61,7 @@ public class DropboxDeduper {
 	public void run() throws Exception {
 		int option = getUserPreferences();
 		if (option != -1) {
-			populateMap(getFiles(startPath, withRecursive));
+			populateMap(getFiles(startPath, withRecursive), option);
 
 			if (option == 0 && listDeletedFiles() && confirmDelete()) {
 				deleteDuplicateFiles();
@@ -97,10 +97,11 @@ public class DropboxDeduper {
 			return -1;
 		}
 		String[] recursiveOptions = {"Cancel", "No", "Yes"};
-		withRecursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
-				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]) == 2;
+		int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
+				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
 
-		if (!withRecursive) {
+		withRecursive = recursive == 2;
+		if (recursive == 0) {
 			return -1;
 		}
 		return selection;
@@ -252,7 +253,7 @@ public class DropboxDeduper {
 	/*
 	 * Fills map with all files from the specified path.
 	 */
-	private static void populateMap(List<Metadata> entries) {
+	private static void populateMap(List<Metadata> entries, int option) {
 		fileMap = new HashMap<>();
 		originalFiles = new HashMap<>();
 		folders = new LinkedList<>();
@@ -289,7 +290,7 @@ public class DropboxDeduper {
 					fileMap.get(fileEntry.getContentHash()).add(fileEntry);
 				}
 			}
-			else if (entry instanceof FolderMetadata folder) {
+			else if (entry instanceof FolderMetadata folder && option == 1) {
 				folders.add(folder);
 			}
 		}

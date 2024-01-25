@@ -1,3 +1,10 @@
+/*
+ * Alex Sing
+ * Mr. Stutler
+ *
+ * Runner class for DropboxDeduper.
+ */
+
 package email.sing.tools.dropbox.deduper;
 
 public class CloudDeduper {

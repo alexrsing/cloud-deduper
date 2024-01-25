@@ -90,15 +90,14 @@ public class DropboxDeduper {
 		startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\"; Leave blank for the home directory):");
 
 		String[] options = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
-		var selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title,
-				0, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+		var selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
 
 		if (selection == -1) {
 			return -1;
 		}
 		String[] recursiveOptions = {"Cancel", "No", "Yes"};
 		int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
-				2, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
 
 		withRecursive = recursive == 2;
 		if (recursive == 0) {
@@ -113,15 +112,18 @@ public class DropboxDeduper {
 	private static boolean confirmDelete() {
 		String[] confirmOption = {"Cancel", "No", "Yes"};
 		int option = JOptionPane.showOptionDialog(null, "Are you sure you want to delete these files?", "Dropbox De-duplicator",
-				2, JOptionPane.YES_NO_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
 
 		return option == 2;
 	}
 
+	/*
+	 * List files to be deleted if user chooses to delete.
+	 */
 	private static boolean listDeletedFiles() {
 		String[] confirmOption = {"Cancel", "Ok"};
 		int option = JOptionPane.showOptionDialog(null, "Deleting:\n" + listFileNamesString(), "Dropbox De-duplicator",
-				2, JOptionPane.OK_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
 
 		return option == 1;
 	}
@@ -140,6 +142,9 @@ public class DropboxDeduper {
 		return entryNames;
     }
 
+	/*
+	 * Create String of files names to be displayed as deleted files.
+	 */
 	private static String listFileNamesString() {
 		StringBuilder namesString = new StringBuilder();
 		for (String name : listFileNames()) {
@@ -148,6 +153,9 @@ public class DropboxDeduper {
 		return namesString.toString();
 	}
 
+	/*
+	 * Get the total size of all values in fileMap.
+	 */
 	private static int getFileMapSize() {
 		int size = 0;
 		for (String hashcode : fileMap.keySet()) {
@@ -428,7 +436,7 @@ public class DropboxDeduper {
 	}
 
 	/*
-	 * Move list to its own file without moving the files. Used for UI.
+	 * Move list to its own file without moving the files.
 	 */
 	private static void logDuplicateFiles() {
 		// first create file object for file placed at location

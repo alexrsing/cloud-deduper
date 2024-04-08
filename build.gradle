@@ -36,6 +36,13 @@ dependencies {
 
     // Writing CSV log file.
     implementation 'com.opencsv:opencsv:5.8'
+
+    // Include the sdk as a dependency
+    implementation 'com.microsoft.graph:microsoft-graph:6.+'
+    // Beta
+    implementation 'com.microsoft.graph:microsoft-graph-beta:6.+'
+    // Include Azure identity for authentication
+    implementation 'com.azure:azure-identity:1.+'
 }
 
 application {

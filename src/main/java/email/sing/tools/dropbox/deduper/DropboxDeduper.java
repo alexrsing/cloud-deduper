@@ -1,6 +1,7 @@
 /*
  *  Alex Sing
  *  Mr. Stutler
+ *  11/3/2023
  *
  * DropboxDeduper takes an inputted path by the user and finds all duplicate files with the option of
  * finding the files recursively. The user will have the option of deleting the files, moving them

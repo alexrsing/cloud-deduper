@@ -43,6 +43,9 @@ dependencies {
     implementation 'com.microsoft.graph:microsoft-graph-beta:6.+'
     // Include Azure identity for authentication
     implementation 'com.azure:azure-identity:1.+'
+
+    // Object mapping
+    implementation 'org.modelmapper:modelmapper:2.4.2'
 }
 
 application {

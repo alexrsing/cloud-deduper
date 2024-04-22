@@ -15,16 +15,14 @@ import com.dropbox.core.*;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
 import com.dropbox.core.v2.users.FullAccount;
-import com.opencsv.CSVWriter;
+import org.modelmapper.ModelMapper;
 
 import java.awt.*;
 
 import java.io.*;
 import java.net.URISyntaxException;
 import java.util.*;
-import java.text.SimpleDateFormat;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
@@ -47,7 +45,7 @@ public class DropboxDeduper {
 	private static final String appKey = "69rotl1nmd80etf";
 	private static final String appSecret = "nn93eef34q21gtf";
 	private static DbxClientV2 dropboxClient; // Client used to send requests to Dropbox
-    private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
+    //private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
 	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
 	private static List<FolderMetadata> folders; // Keep the folders that are de-duplicated through to make folder structure
 	private static int totalFiles; // Total number of files in the de-duplication path.
@@ -59,6 +57,7 @@ public class DropboxDeduper {
 		printCurrentAccountInfo();
 	}
 
+	/*
 	public void run() throws Exception {
 		int option = getUserPreferences();
 		if (option != -1) {
@@ -67,12 +66,13 @@ public class DropboxDeduper {
 			if (option == 0 && listDeletedFiles() && confirmDelete()) {
 				deleteDuplicateFiles();
 			} else if (option == 1) {
-				moveFilesToFolder();
+				//moveFilesToFolder();
 			}
-			logDuplicateFiles();
+			//logDuplicateFiles();
 			displayFinalDialog();
 		}
 	}
+	 */
 
 	/*
 	 * Greet the user with the title.
@@ -80,90 +80,6 @@ public class DropboxDeduper {
 	private void printGreeting() {
         System.out.println("--------------Dropbox De-duper--------------");
     }
-
-	/*
-	 * Ask the user for their preferences of what happens and where to find the files.
-	 */
-	private static int getUserPreferences() {
-		String title = "Dropbox De-duplicator";
-
-		// While the startPath is null or does not exist, keep asking.
-		startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\"; Leave blank for the home directory):");
-
-		String[] options = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
-		var selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
-
-		if (selection == -1) {
-			return -1;
-		}
-		String[] recursiveOptions = {"Cancel", "No", "Yes"};
-		int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, null, recursiveOptions, recursiveOptions[0]);
-
-		withRecursive = recursive == 2;
-		if (recursive == 0) {
-			return -1;
-		}
-		return selection;
-	}
-
-	/*
-	 * If the user chooses to delete, they must confirm before the program will run.
-	 */
-	private static boolean confirmDelete() {
-		String[] confirmOption = {"Cancel", "No", "Yes"};
-		int option = JOptionPane.showOptionDialog(null, "Are you sure you want to delete these files?", "Dropbox De-duplicator",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.YES_NO_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
-
-		return option == 2;
-	}
-
-	/*
-	 * List files to be deleted if user chooses to delete.
-	 */
-	private static boolean listDeletedFiles() {
-		String[] confirmOption = {"Cancel", "Ok"};
-		int option = JOptionPane.showOptionDialog(null, "Deleting:\n" + listFileNamesString(), "Dropbox De-duplicator",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.OK_CANCEL_OPTION, null, confirmOption, confirmOption[0]);
-
-		return option == 1;
-	}
-
-	/*
-	 * Prints the name of all files in the path
-	 * If recursive is true, do this recursively for all sub-folders
-	 */
-    private static List<String> listFileNames() {
-		List<FileMetadata> list = new LinkedList<>();
-		for (String key : fileMap.keySet()) {
-			list.addAll(fileMap.get(key));
-		}
-		List<String> entryNames = new LinkedList<>();
-		list.forEach(f -> entryNames.add(f.getName()));
-		return entryNames;
-    }
-
-	/*
-	 * Create String of files names to be displayed as deleted files.
-	 */
-	private static String listFileNamesString() {
-		StringBuilder namesString = new StringBuilder();
-		for (String name : listFileNames()) {
-			namesString.append(name).append("\n");
-		}
-		return namesString.toString();
-	}
-
-	/*
-	 * Get the total size of all values in fileMap.
-	 */
-	private static int getFileMapSize() {
-		int size = 0;
-		for (String hashcode : fileMap.keySet()) {
-			size += fileMap.get(hashcode).size();
-		}
-		return size;
-	}
 
 	/*
 	 * Creates a new Dropbox client to make remote calls to the Dropbox API user endpoints
@@ -178,14 +94,14 @@ public class DropboxDeduper {
 	 * Gets access token that is used in the DbxClientV2
 	 */
 	private static String getDropboxAccessToken() throws DbxException, URISyntaxException {
-		DbxRequestConfig requestConfig =  new DbxRequestConfig("dropbox/deduper");
+		DbxRequestConfig requestConfig = new DbxRequestConfig("dropbox/deduper");
 		DbxAppInfo appInfo = new DbxAppInfo(appKey, appSecret);
 		DbxWebAuth auth = new DbxWebAuth(requestConfig, appInfo);
 
 		DbxWebAuth.Request authRequest = DbxWebAuth.newRequestBuilder().withNoRedirect().build();
 		String authorizeUrl = auth.authorize(authRequest);
 
-		String accessCode = getAccessCode(authorizeUrl);
+		String accessCode = getDropboxAccessCode(authorizeUrl);
 
 		if (accessCode != null) {
 			accessCode = accessCode.trim();
@@ -198,7 +114,7 @@ public class DropboxDeduper {
 	/*
 	 * Display the URL with directions to get access code.
 	 */
-	private static String getAccessCode(String url) {
+	private static String getDropboxAccessCode(String url) {
 		JLabel label = new JLabel();
 		Font font = label.getFont();
 
@@ -246,7 +162,7 @@ public class DropboxDeduper {
 	 * Return a list of all files in the path.
 	 * If recursive is true, include all the files within sub-folders of the path.
 	 */
-	private static List<Metadata> getFiles(String path, boolean recursive) throws Exception {
+	public static List<Metadata> getFiles(String path, boolean recursive) throws Exception {
 	    ListFolderResult result = dropboxClient.files().listFolderBuilder(path)
 	         .withRecursive(recursive)
 	         .start();
@@ -256,12 +172,47 @@ public class DropboxDeduper {
 		    result = dropboxClient.files().listFolderContinue(result.getCursor());
 		    entries.addAll(result.getEntries());
 		}
+
 		return entries;
 	}
 
+	public static List<GenericFileMetadata> mapToGenericFiles(List<Metadata> files) {
+		List<GenericFileMetadata> genericFiles = new ArrayList<>();
+		ModelMapper modelMapper = new ModelMapper();
+		for (Metadata file : files) {
+			GenericFileMetadata genericFile = modelMapper.map(file, GenericFileMetadata.class);
+			genericFiles.add(genericFile);
+		}
+
+		return genericFiles;
+	}
+
+	public static List<FileMetadata> mapToDropboxFiles(List<GenericFileMetadata> genericFiles) {
+		List<FileMetadata> dropboxFiles = new LinkedList<>();
+		ModelMapper modelMapper = new ModelMapper();
+
+		for (GenericFileMetadata file : genericFiles) {
+			FileMetadata dropboxFile = modelMapper.map(file, FileMetadata.class);
+			dropboxFiles.add(dropboxFile);
+		}
+
+		return dropboxFiles;
+	}
+
+	public static Map<String, List<FileMetadata>> mapFileMapToDropbox() {
+		Map<String, List<FileMetadata>> duplicateFiles = new HashMap<>();
+		for (String key : GenericFileMetadata.files.keySet()) {
+			List<FileMetadata> dropboxFiles = mapToDropboxFiles(GenericFileMetadata.files.get(key));
+			duplicateFiles.put(key, dropboxFiles);
+		}
+
+		return duplicateFiles;
+	}
+
+
 	/*
 	 * Fills map with all files from the specified path.
-	 */
+
 	private static void populateMap(List<Metadata> entries, int option) {
 		fileMap = new HashMap<>();
 		originalFiles = new HashMap<>();
@@ -319,14 +270,7 @@ public class DropboxDeduper {
 			}
 	    }
 	}
-
-	/*
-	 * Final dialog box in program,
-	 * tells user how many duplicates files were found out of the total number of files de-duplicated.
 	 */
-	private static void displayFinalDialog() {
-		JOptionPane.showMessageDialog(null, getFileMapSize() + " duplicate(s) found out of " + totalFiles + " files.");
-	}
 
 	/*
 	 * Create a new folder to move duplicate files to.
@@ -344,14 +288,13 @@ public class DropboxDeduper {
 	 * Appends the current date to the duplicate folder name for a specific name.
 	 */
 	private static String getFolderName() {
-		return "/Duplicate Files Folder - " + getCurrentDate();
+		return "/Duplicate Files Folder - " + GenericFileDeduplicator.getCurrentDate();
 	}
 
 	/*
 	 * Copy the folder structure from
 	 */
-	private static void createFolderHierarchy() throws Exception {
-		String baseFolderName = getFolderName();
+	private static void createFolderHierarchy(String baseFolderName) throws Exception {
 		createNewFolder(baseFolderName);
 
 		for (FolderMetadata folder : folders) {
@@ -365,10 +308,11 @@ public class DropboxDeduper {
 	 */
 	private static void moveFilesToFolder() throws Exception {
 		String baseFolderName = getFolderName();
-		createFolderHierarchy();
+		createFolderHierarchy(baseFolderName);
 
-		for (String hashCode : fileMap.keySet()) {
-			for (FileMetadata file : fileMap.get(hashCode)) {
+		Map<String, List<FileMetadata>> dropboxDuplicates = mapFileMapToDropbox();
+		for (String hashCode : dropboxDuplicates.keySet()) {
+			for (FileMetadata file : dropboxDuplicates.get(hashCode)) {
 
 				if (file != null) {
 					String fromPath = file.getPathDisplay();
@@ -423,9 +367,11 @@ public class DropboxDeduper {
 	/*
 	 * Delete all files in the "Duplicate Files" folder, must have moved them into the folder first.
 	 */
-	private static void deleteDuplicateFiles() {
-		for (String key : fileMap.keySet()) {
-			for (FileMetadata file : fileMap.get(key)) {
+	private void deleteDuplicateFiles() {
+		Map<String, List<FileMetadata>> dropboxDuplicates = mapFileMapToDropbox();
+
+		for (String key : dropboxDuplicates.keySet()) {
+			for (FileMetadata file : dropboxDuplicates.get(key)) {
 				try {
 					dropboxClient.files().deleteV2(file.getPathDisplay());
 					Thread.sleep(600);
@@ -439,55 +385,13 @@ public class DropboxDeduper {
 	/*
 	 * Move list to its own file without moving the files.
 	 */
-	private static void logDuplicateFiles() {
-		// first create file object for file placed at location
-		// specified by filepath
-		File file = new File("Duplicate files log - " + getCurrentDate() + ".csv");
-		try {
-			// create FileWriter object with file as parameter
-			FileWriter outputFile = new FileWriter(file);
-
-			// create CSVWriter object with fileWriter object as parameter
-			CSVWriter writer = new CSVWriter(outputFile);
-
-			// Add header to csv
-			String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "DUPLICATE FILE SIZE", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION", "ORIGINAL FILE SIZE"};
-			writer.writeNext(header);
-
-			String[] data = new String[6];
-			for (String hashCode : fileMap.keySet()) {
-				for (FileMetadata f : fileMap.get(hashCode)) {
-					data[0] = f.getName();
-					data[1] = f.getPathLower();
-					data[2] = f.getSize() + " bytes";
-					data[3] = originalFiles.get(hashCode).getName();
-					data[4] = originalFiles.get(hashCode).getPathLower();
-					data[5] = originalFiles.get(hashCode).getSize() + " bytes";
-					writer.writeNext(data);
-				}
-			}
-
-			// Close writer
-			writer.close();
-			try (InputStream in = new FileInputStream(file.getName())) {
-					dropboxClient.files().uploadBuilder("/" + file.getName())
-							.uploadAndFinish(in);
-			}
-			catch(Exception e){
-				e.printStackTrace();
-			}
-		} catch (Exception e) {
+	public static void uploadLogFile(File logFile) {
+		try (InputStream in = new FileInputStream(logFile.getName())) {
+				dropboxClient.files().uploadBuilder("/" + logFile.getName())
+						.uploadAndFinish(in);
+		}
+		catch(Exception e){
 			e.printStackTrace();
 		}
-	}
-
-	/*
-	 * Uses Date class to get the current date down to the second for naming purposes.
-	 */
-	private static String getCurrentDate() {
-		Date myDate = new Date();
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd:HH-mm-ss");
-
-        return sdf.format(myDate);
 	}
 }

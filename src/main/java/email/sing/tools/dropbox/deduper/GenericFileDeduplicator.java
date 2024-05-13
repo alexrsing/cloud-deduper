@@ -18,7 +18,7 @@ import java.util.*;
 
 public class GenericFileDeduplicator {
 
-    private static String cloudService;
+    private static String cloudService = "";
     private static boolean withRecursive;
     private static String startPath;
     private final String date = getCurrentDate();
@@ -28,29 +28,45 @@ public class GenericFileDeduplicator {
         int option = getUserPreferences();
         populateFiles();
 
-        //DropboxDeduper dropboxDeduper = new DropboxDeduper();
-        //OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
+
         if (cloudService.equals("Dropbox")) {
-        }
-        else {
-        }
+            DropboxDeduper dropboxDeduper = new DropboxDeduper();
+            if (option == 0 && confirmDelete() && listDeletedFiles()) {
+                // Delete files
 
-        // Methods for Onedrive and Dropbox must be the same name.
-        if (option == 0 && confirmDelete() && listDeletedFiles()) {
-            // Delete files
-
-        }
-        else if (option == 1) {
-            // Create folder and move files
-
-        }
-        else {
-            // Show duplicate files in spreadsheet
-            if (cloudService.equals("Dropbox")) {
-                File duplicateLogs = logDuplicateFiles();
-                DropboxDeduper.uploadLogFile(duplicateLogs);
             }
-            else if (cloudService.equals("Onedrive")){
+            else if (option == 1) {
+                // Create folder and move files
+
+            }
+            else {
+                // Show duplicate files in spreadsheet
+                if (cloudService.equals("Dropbox")) {
+                    File duplicateLogs = logDuplicateFiles();
+                    DropboxDeduper.uploadLogFile(duplicateLogs);
+                }
+                else if (cloudService.equals("Onedrive")){
+                }
+            }
+        }
+        else {
+            OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
+            if (option == 0 && confirmDelete() && listDeletedFiles()) {
+                // Delete files
+
+            }
+            else if (option == 1) {
+                // Create folder and move files
+
+            }
+            else {
+                // Show duplicate files in spreadsheet
+                if (cloudService.equals("Dropbox")) {
+                    File duplicateLogs = logDuplicateFiles();
+                    DropboxDeduper.uploadLogFile(duplicateLogs);
+                }
+                else if (cloudService.equals("Onedrive")){
+                }
             }
         }
 

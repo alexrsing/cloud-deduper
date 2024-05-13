@@ -25,6 +25,16 @@ repositories {
 }
 
 dependencies {
+    // https://github.com/microsoftgraph/msgraph-sdk-java
+    // Include the sdk as a dependency
+    // x-release-please-start-version
+
+    //implementation 'com.microsoft.graph:microsoft-graph:5.77.0'
+    implementation 'com.microsoft.graph:microsoft-graph:5.77.0'
+    // x-release-please-end
+    // This dependency is only needed if you are using a TokenCredential object for authentication
+    implementation 'com.azure:azure-identity:1.11.0'
+
     // Use Dropbox SDK for program.
     implementation 'com.dropbox.core:dropbox-core-sdk:5.4.4'
 
@@ -36,13 +46,6 @@ dependencies {
 
     // Writing CSV log file.
     implementation 'com.opencsv:opencsv:5.8'
-
-    // Include the sdk as a dependency
-    implementation 'com.microsoft.graph:microsoft-graph:6.+'
-    // Beta
-    implementation 'com.microsoft.graph:microsoft-graph-beta:6.+'
-    // Include Azure identity for authentication
-    implementation 'com.azure:azure-identity:1.+'
 
     // Object mapping
     implementation 'org.modelmapper:modelmapper:2.4.2'

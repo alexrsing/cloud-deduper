@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 public class GenericFileMetadata {
+
+    // Name of the file
     private String fileName;
     private String fileRoot;
     private String contentHash;
@@ -21,7 +23,7 @@ public class GenericFileMetadata {
     public static Map<String, List<GenericFileMetadata>> files;
     public static Map<String, GenericFileMetadata> originalFiles;
 
-
+    //
     public GenericFileMetadata(String fileName, String fileRoot, String contentHash, int fileSize) {
         this.fileName = fileName;
         this.fileRoot = fileRoot;

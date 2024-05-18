@@ -13,6 +13,7 @@ import com.opencsv.CSVWriter;
 import javax.swing.*;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -21,7 +22,6 @@ public class GenericFileDeduplicator {
     private static String cloudService = "";
     private static boolean withRecursive;
     private static String startPath;
-    private final String date = getCurrentDate();
 
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
@@ -51,6 +51,16 @@ public class GenericFileDeduplicator {
         }
         else {
             OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
+            final Properties oAuthProperties = new Properties();
+            try {
+                oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
+            } catch (IOException e) {
+                System.out.println("Unable to read OAuth configuration. Make sure you have a properly formatted oAuth.properties file. See README for details.");
+                return;
+            }
+
+            OnedriveDeduper.initializeGraph(oAuthProperties);
+
             if (option == 0 && confirmDelete() && listDeletedFiles()) {
                 // Delete files
 
@@ -78,30 +88,29 @@ public class GenericFileDeduplicator {
      */
     private static void populateFiles() throws Exception {
         // Get file from OneDrive or Dropbox depending on user choice
+        List<GenericFileMetadata> entries;
         if (cloudService.equals("Dropbox")) {
             DropboxDeduper deduper = new DropboxDeduper();
-            List<GenericFileMetadata> entries =  DropboxDeduper.mapToGenericFiles(DropboxDeduper.getFiles(startPath, withRecursive));
-
-            for (GenericFileMetadata f : entries) {
-                String contentHash = f.getContentHash();
-                if (!GenericFileMetadata.files.containsKey(f.getContentHash())) {
-                    List<GenericFileMetadata> fileList = new LinkedList<>();
-                    fileList.add(f);
-                    GenericFileMetadata.files.put(contentHash, fileList);
-                }
-                else {
-                    GenericFileMetadata.files.get(contentHash).add(f);
-                }
-            }
-            keepOriginalFile();
+            entries = DropboxDeduper.mapToGenericFiles(DropboxDeduper.getFiles(startPath, withRecursive));
         }
-        else if (cloudService.equals("Onedrive")) {
+        else {
             OnedriveDeduper deduper = new OnedriveDeduper();
-
-            keepOriginalFile();
+            //entries = OnedriveDeduper.mapToGenericFiles(OnedriveDeduper.getFiles(startPath, withRecursive));
         }
-
-
+        /*
+        for (GenericFileMetadata f : entries) {
+            String contentHash = f.getContentHash();
+            if (!GenericFileMetadata.files.containsKey(f.getContentHash())) {
+                List<GenericFileMetadata> fileList = new LinkedList<>();
+                fileList.add(f);
+                GenericFileMetadata.files.put(contentHash, fileList);
+            }
+            else {
+                GenericFileMetadata.files.get(contentHash).add(f);
+            }
+        }
+         */
+            keepOriginalFile();
     }
 
     /*
@@ -183,7 +192,7 @@ public class GenericFileDeduplicator {
     }
 
     /*
-     * Get the total size of all values in fileMap.
+     * Return the total number of duplicate files.
      */
     private static int getFileMapSize() {
         Map<String, List<GenericFileMetadata>> files = GenericFileMetadata.files;
@@ -199,7 +208,8 @@ public class GenericFileDeduplicator {
      */
     private static String listFileNamesString() {
         StringBuilder namesString = new StringBuilder();
-        for (String name : listFileNames()) {
+        ArrayList<String> fileNames = listFileNames();
+        for (String name : fileNames) {
             namesString.append(name).append("\n");
         }
         return namesString.toString();
@@ -208,10 +218,17 @@ public class GenericFileDeduplicator {
     /*
      * Return linked list of the names of duplicate files.
      */
-    private static List<String> listFileNames() {
+    private static ArrayList<String> listFileNames() {
+        ArrayList<String> fileNameList = new ArrayList<>(getFileMapSize());
         Map<String, List<GenericFileMetadata>> fileMap = GenericFileMetadata.files;
 
-        return new LinkedList<>(fileMap.keySet());
+        for (String key : fileMap.keySet()) {
+            for (GenericFileMetadata file : fileMap.get(key)) {
+                fileNameList.add(file.getFileName());
+            }
+        }
+
+        return fileNameList;
     }
 
     /*

@@ -1,6 +1,6 @@
-# dropbox-deduper
+# cloud-deduper
 
-A project to de-duplicate files in a Dropbox folder
+A project to de-duplicate files in a Dropbox or Onedrive folder
 
 Does not de-duplicate files that have been uploaded from another cloud storage service.
 

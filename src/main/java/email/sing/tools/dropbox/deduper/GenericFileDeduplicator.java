@@ -23,11 +23,12 @@ public class GenericFileDeduplicator {
     private static boolean withRecursive;
     private static String startPath;
 
+    private static Map<String, List<GenericFileMetadata>> duplicateFiles;
+
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
         int option = getUserPreferences();
         populateFiles();
-
 
         if (cloudService.equals("Dropbox")) {
             DropboxDeduper dropboxDeduper = new DropboxDeduper();
@@ -40,26 +41,31 @@ public class GenericFileDeduplicator {
 
             }
             else {
-                // Show duplicate files in spreadsheet
-                if (cloudService.equals("Dropbox")) {
-                    File duplicateLogs = logDuplicateFiles();
-                    DropboxDeduper.uploadLogFile(duplicateLogs);
-                }
-                else if (cloudService.equals("Onedrive")){
-                }
+                // Upload log file to Dropbox
+                File duplicateLogs = logDuplicateFiles();
+                DropboxDeduper.uploadLogFile(duplicateLogs);
             }
         }
         else {
-            OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
+            // Set up and create onedriveClient
+            //OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
+
+            // Get the login for the user's Onedrive account and create GraphServiceClient with it.
+            OnedriveDeduper.getOnedriveLogin();
+            OnedriveDeduper.createGraphClient();
+
+
+            /*
             final Properties oAuthProperties = new Properties();
             try {
                 oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
             } catch (IOException e) {
-                System.out.println("Unable to read OAuth configuration. Make sure you have a properly formatted oAuth.properties file. See README for details.");
+                System.out.println("Unable to read OAuth configuration.");
                 return;
             }
-
             OnedriveDeduper.initializeGraph(oAuthProperties);
+            */
+
 
             if (option == 0 && confirmDelete() && listDeletedFiles()) {
                 // Delete files
@@ -70,13 +76,8 @@ public class GenericFileDeduplicator {
 
             }
             else {
-                // Show duplicate files in spreadsheet
-                if (cloudService.equals("Dropbox")) {
-                    File duplicateLogs = logDuplicateFiles();
-                    DropboxDeduper.uploadLogFile(duplicateLogs);
-                }
-                else if (cloudService.equals("Onedrive")){
-                }
+                // Upload log file to Onedrive.
+
             }
         }
 
@@ -90,7 +91,7 @@ public class GenericFileDeduplicator {
         // Get file from OneDrive or Dropbox depending on user choice
         List<GenericFileMetadata> entries;
         if (cloudService.equals("Dropbox")) {
-            DropboxDeduper deduper = new DropboxDeduper();
+            //DropboxDeduper deduper = new DropboxDeduper();
             entries = DropboxDeduper.mapToGenericFiles(DropboxDeduper.getFiles(startPath, withRecursive));
         }
         else {
@@ -134,7 +135,7 @@ public class GenericFileDeduplicator {
     /*
      * UI for app
      */
-    private static int getUserPreferences() {
+    private static int getUserPreferences() throws Exception {
         String title = "File De-duplicator";
         String[] serviceOptions = {"Dropbox", "Onedrive"};
         int cs = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);

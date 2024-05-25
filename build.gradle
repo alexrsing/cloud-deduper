@@ -29,11 +29,16 @@ dependencies {
     // Include the sdk as a dependency
     // x-release-please-start-version
 
-    //implementation 'com.microsoft.graph:microsoft-graph:5.77.0'
     implementation 'com.microsoft.graph:microsoft-graph:5.77.0'
+    //implementation 'com.microsoft.graph:microsoft-graph-beta:5.80.0'
     // x-release-please-end
     // This dependency is only needed if you are using a TokenCredential object for authentication
     implementation 'com.azure:azure-identity:1.11.0'
+
+    // https://mvnrepository.com/artifact/com.microsoft.azure/msal4j
+    implementation group: 'com.microsoft.azure', name: 'msal4j', version: '1.14.2'
+
+
 
     // Use Dropbox SDK for program.
     implementation 'com.dropbox.core:dropbox-core-sdk:5.4.4'
@@ -49,6 +54,9 @@ dependencies {
 
     // Object mapping
     implementation 'org.modelmapper:modelmapper:2.4.2'
+
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+    implementation 'org.slf4j:slf4j-simple:2.0.13'
 }
 
 application {

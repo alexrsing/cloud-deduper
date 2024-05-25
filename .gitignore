@@ -4,3 +4,7 @@
 # Ignore Gradle build output directory
 build
 .idea
+
+# Ignore oAuth properties
+src
+.propteries

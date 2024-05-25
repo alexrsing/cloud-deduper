@@ -8,57 +8,69 @@
 
 package email.sing.tools.dropbox.deduper;
 
-import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
-import com.azure.identity.*;
+import com.azure.core.http.policy.RetryOptions;
+import com.azure.identity.ClientSecretCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
+import com.azure.identity.UsernamePasswordCredential;
+import com.azure.identity.UsernamePasswordCredentialBuilder;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.requests.GraphServiceClient;
-import com.nimbusds.oauth2.sdk.token.Token;
 import org.jetbrains.annotations.NotNull;
-import reactor.core.publisher.Mono;
 
 import javax.swing.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class OnedriveDeduper {
 
     public static GraphServiceClient graphClient;
-
     public static User onedriveUser;
-
     private static String username;
-
     private static String password;
 
     public OnedriveDeduper() throws Exception {
     }
 
-    public static void createGraphClient() throws Exception {
+    // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
+    public static void initializeGraphClient() throws Exception {
+        /*
         Properties prop = readPropertiesFile("oAuth.properties");
         final String clientId = prop.getProperty("clientId");
-        final List<String> scopes = Arrays.asList(prop.getProperty("app.graphUserScopes").split(","));
+        final List<String> scopes = Arrays.asList(prop.getProperty("app.graphUserScopes")
+                .split(","));
         final String tenantId = prop.getProperty("tenantId");
+        */
+
+        final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
+        List<String> scopes = new LinkedList<>();
+        scopes.add("user.read");
+        scopes.add("profile");
+        scopes.add("openid");
+        scopes.add("files.readwrite.all");
+        final String tenantId = "common";
+
 
         TokenRequestContext context = new TokenRequestContext();
         context.setScopes(scopes);
 
+        username = "alexs@singtech.com.au";
+        password = "0nT@rget!";
+        
         TokenCredential credential = new UsernamePasswordCredentialBuilder()
                 .clientId(clientId)
                 .tenantId(tenantId)
                 .username(username)
                 .password(password)
+                .enableUnsafeSupportLogging()
+                .authorityHost("https://login.microsoftonline.com/alexssingtechcom.onmicrosoft.com")
                 .build();
 
         if (null == scopes || null == credential) {
@@ -77,15 +89,16 @@ public class OnedriveDeduper {
                 })
                 .buildClient();
 
-        onedriveUser = graphClient.me().buildRequest().get();
+         onedriveUser = graphClient.me().buildRequest().get();
     }
 
+    // Retrieve the username and password for the user's Onedrive account.
     public static void getOnedriveLogin() {
         username = JOptionPane.showInputDialog("Please enter your username for your Onedrive account.");
         password = JOptionPane.showInputDialog("Please enter your password for your Onedrive account.");
     }
 
-    // Read the details about Azure App from .properties file.
+    // Read the details about Azure App Registration from .properties file.
     public static Properties readPropertiesFile(String fileName) throws IOException {
         FileInputStream fis = null;
         Properties prop = null;
@@ -104,24 +117,13 @@ public class OnedriveDeduper {
     }
 
     /*
-    static void initializeGraph(Properties properties) {
-        try {
-            Graph.initializeGraphForUserAuth(properties,
-                    challenge -> System.out.println(challenge.getMessage()));
-        } catch (Exception e)
-        {
-            System.out.println("Error initializing Graph for user auth");
-            System.out.println(e.getMessage());
-        }
-    }
-
     // Find the files in the Onedrive folder.
     public static DriveItemCollectionResponse getFiles(String startPath, boolean recursive) {
-        DriveItemCollectionResponse result = graphClient.drives()
+        DriveItemCollectionResponse entries = graphClient.drives()
                 .byId("{drive-id}").items()
                 .byDriveItemId("{driveItem-id}")
                 .children().get();
-        return result;
+        return entries;
     }
 
     public static List<GenericFileMetadata> mapToGenericFiles() {
@@ -130,6 +132,9 @@ public class OnedriveDeduper {
      */
 
     // Delete files
+    public static void printDisplayName() {
+        System.out.println(onedriveUser.displayName);
+    }
 
     // Move files
 }

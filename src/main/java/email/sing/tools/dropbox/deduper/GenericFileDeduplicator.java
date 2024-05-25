@@ -13,7 +13,6 @@ import com.opencsv.CSVWriter;
 import javax.swing.*;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -27,8 +26,9 @@ public class GenericFileDeduplicator {
 
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
+        /*
         int option = getUserPreferences();
-        populateFiles();
+        //populateFiles();
 
         if (cloudService.equals("Dropbox")) {
             DropboxDeduper dropboxDeduper = new DropboxDeduper();
@@ -48,13 +48,8 @@ public class GenericFileDeduplicator {
         }
         else {
             // Set up and create onedriveClient
-            //OnedriveDeduper onedriveDeduper = new OnedriveDeduper();
 
-            // Get the login for the user's Onedrive account and create GraphServiceClient with it.
-            OnedriveDeduper.getOnedriveLogin();
-            OnedriveDeduper.createGraphClient();
-
-
+         */
             /*
             final Properties oAuthProperties = new Properties();
             try {
@@ -64,7 +59,7 @@ public class GenericFileDeduplicator {
                 return;
             }
             OnedriveDeduper.initializeGraph(oAuthProperties);
-            */
+
 
 
             if (option == 0 && confirmDelete() && listDeletedFiles()) {
@@ -82,7 +77,49 @@ public class GenericFileDeduplicator {
         }
 
         displayFinalDialog();
+    */
+
+        OnedriveDeduper.initializeGraphClient();
+        OnedriveDeduper.printDisplayName();
     }
+
+    /*
+     * UI for app
+     */
+    /*
+    private static int getUserPreferences() throws Exception {
+        String title = "File De-duplicator";
+        String[] serviceOptions = {"Dropbox", "Onedrive"};
+        int cs = JOptionPane.showOptionDialog(null, "What cloud service would you like to use?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
+        cloudService = serviceOptions[cs];
+
+        if (cloudService.equals("Onedrive")) {
+            OnedriveDeduper.getOnedriveLogin();
+        }
+
+        // While the startPath is null or does not exist, keep asking.
+        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory):");
+
+        String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
+        int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
+
+        if (selection == -1) {
+            System.exit(0);
+        }
+        String[] recursiveOptions = {"Cancel", "No", "Yes"};
+        int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, recursiveOptions, recursiveOptions[0]);
+        if (recursive == 0) {
+            System.exit(0);
+        }
+
+        withRecursive = recursive == 2;
+        if (recursive == 0) {
+            System.exit(0);
+        }
+        return selection;
+    }
+    */
 
     /*
      * Get a list of all files in a specified path from either Dropbox or OneDrive and add them the "files" map
@@ -130,35 +167,6 @@ public class GenericFileDeduplicator {
                 GenericFileMetadata.files.get(contentHash).remove(0);
             }
         }
-    }
-
-    /*
-     * UI for app
-     */
-    private static int getUserPreferences() throws Exception {
-        String title = "File De-duplicator";
-        String[] serviceOptions = {"Dropbox", "Onedrive"};
-        int cs = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
-        cloudService = serviceOptions[cs];
-
-        // While the startPath is null or does not exist, keep asking.
-        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory):");
-
-        String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
-        int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
-
-        if (selection == -1) {
-            return -1;
-        }
-        String[] recursiveOptions = {"Cancel", "No", "Yes"};
-        int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, recursiveOptions, recursiveOptions[0]);
-
-        withRecursive = recursive == 2;
-        if (recursive == 0) {
-            return -1;
-        }
-        return selection;
     }
 
     /*
@@ -273,6 +281,10 @@ public class GenericFileDeduplicator {
             return null;
         }
         return file;
+    }
+
+    public static void displayErrorMessage(String message) {
+        JOptionPane.showMessageDialog(null, message);
     }
 
     /*

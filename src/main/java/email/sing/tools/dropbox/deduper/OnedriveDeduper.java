@@ -11,10 +11,9 @@ package email.sing.tools.dropbox.deduper;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.http.policy.RetryOptions;
-import com.azure.identity.ClientSecretCredential;
-import com.azure.identity.ClientSecretCredentialBuilder;
-import com.azure.identity.UsernamePasswordCredential;
-import com.azure.identity.UsernamePasswordCredentialBuilder;
+import com.azure.identity.*;
+import com.microsoft.aad.msal4j.IPublicClientApplication;
+import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.models.User;
@@ -55,23 +54,24 @@ public class OnedriveDeduper {
         scopes.add("profile");
         scopes.add("openid");
         scopes.add("files.readwrite.all");
-        final String tenantId = "common";
-
+        final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
+        String authority = "https://login.microsoftonline.com/organizations";
 
         TokenRequestContext context = new TokenRequestContext();
         context.setScopes(scopes);
 
         username = "alexs@singtech.com.au";
         password = "0nT@rget!";
-        
+
         TokenCredential credential = new UsernamePasswordCredentialBuilder()
                 .clientId(clientId)
                 .tenantId(tenantId)
                 .username(username)
                 .password(password)
                 .enableUnsafeSupportLogging()
-                .authorityHost("https://login.microsoftonline.com/alexssingtechcom.onmicrosoft.com")
+                .authorityHost(authority)
                 .build();
+
 
         if (null == scopes || null == credential) {
             throw new Exception("Unexpected error");
@@ -89,7 +89,7 @@ public class OnedriveDeduper {
                 })
                 .buildClient();
 
-         onedriveUser = graphClient.me().buildRequest().get();
+        onedriveUser = graphClient.me().buildRequest().get();
     }
 
     // Retrieve the username and password for the user's Onedrive account.

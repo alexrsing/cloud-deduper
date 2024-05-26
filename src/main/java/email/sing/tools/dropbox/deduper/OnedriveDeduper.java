@@ -8,25 +8,14 @@
 
 package email.sing.tools.dropbox.deduper;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.credential.TokenRequestContext;
-import com.azure.core.http.policy.RetryOptions;
-import com.azure.identity.*;
-import com.microsoft.aad.msal4j.IPublicClientApplication;
-import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.models.User;
-import com.microsoft.graph.requests.GraphServiceClient;
-import org.jetbrains.annotations.NotNull;
+import com.microsoft.graph.serviceclient.GraphServiceClient;
 
 import javax.swing.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URL;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.Properties;
 
 public class OnedriveDeduper {
 
@@ -38,16 +27,16 @@ public class OnedriveDeduper {
     public OnedriveDeduper() throws Exception {
     }
 
+    /*
     // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
     public static void initializeGraphClient() throws Exception {
 
-        /*
         Properties prop = readPropertiesFile("oAuth.properties");
         final String clientId = prop.getProperty("clientId");
         final List<String> scopes = Arrays.asList(prop.getProperty("app.graphUserScopes")
                 .split(","));
         final String tenantId = prop.getProperty("tenantId");
-        */
+
 
         final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
         List<String> scopes = new LinkedList<>();
@@ -58,9 +47,8 @@ public class OnedriveDeduper {
         final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
         String authority = "https://login.microsoftonline.com/organizations";
 
-
-        TokenRequestContext context = new TokenRequestContext();
-        context.setScopes(scopes);
+        //TokenRequestContext context = new TokenRequestContext();
+        //context.setScopes(scopes);
 
         username = "alexs@singtech.com.au";
         password = "0nT@rget!";
@@ -93,6 +81,7 @@ public class OnedriveDeduper {
 
         onedriveUser = graphClient.me().buildRequest().get();
     }
+    */
 
     // Retrieve the username and password for the user's Onedrive account.
     public static void getOnedriveLogin() {
@@ -135,7 +124,7 @@ public class OnedriveDeduper {
 
     // Delete files
     public static void printDisplayName() {
-        System.out.println(onedriveUser.displayName);
+        System.out.println(onedriveUser.getDisplayName());
     }
 
     // Move files

@@ -8,6 +8,8 @@
 
 package email.sing.tools.dropbox.deduper;
 
+import com.azure.core.credential.TokenCredential;
+import com.azure.identity.UsernamePasswordCredentialBuilder;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
@@ -15,6 +17,9 @@ import javax.swing.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 
 public class OnedriveDeduper {
@@ -24,27 +29,31 @@ public class OnedriveDeduper {
     private static String username;
     private static String password;
 
+    //Azure App Properties
+    private static final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
+    private static final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
+
     public OnedriveDeduper() throws Exception {
     }
 
-    /*
-    // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
-    public static void initializeGraphClient() throws Exception {
 
+    // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
+    public static void initializeGraphClientByPassword() throws Exception {
+
+        /*
         Properties prop = readPropertiesFile("oAuth.properties");
         final String clientId = prop.getProperty("clientId");
         final List<String> scopes = Arrays.asList(prop.getProperty("app.graphUserScopes")
                 .split(","));
         final String tenantId = prop.getProperty("tenantId");
 
+         */
 
-        final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
         List<String> scopes = new LinkedList<>();
         scopes.add("user.read");
         scopes.add("profile");
         scopes.add("openid");
         scopes.add("files.readwrite.all");
-        final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
         String authority = "https://login.microsoftonline.com/organizations";
 
         //TokenRequestContext context = new TokenRequestContext();
@@ -58,8 +67,6 @@ public class OnedriveDeduper {
                 .tenantId(tenantId)
                 .username(username)
                 .password(password)
-                .enableUnsafeSupportLogging()
-                .authorityHost(authority)
                 .build();
 
 
@@ -67,6 +74,9 @@ public class OnedriveDeduper {
             throw new Exception("Unexpected error");
         }
 
+        graphClient = new GraphServiceClient(credential, Arrays.toString(scopes.toArray()));
+
+        /*
         graphClient = GraphServiceClient.builder()
                 .authenticationProvider(new IAuthenticationProvider() {
                     @NotNull
@@ -78,10 +88,23 @@ public class OnedriveDeduper {
                     }
                 })
                 .buildClient();
+         */
 
-        onedriveUser = graphClient.me().buildRequest().get();
+        onedriveUser = graphClient.me().get();
+        }
+
+    static void initializeGraph(Properties properties) {
+        try {
+            Graph.initializeGraphForUserAuth(properties,
+                    challenge -> System.out.println(challenge.getMessage()));
+        } catch (Exception e)
+        {
+            System.out.println("Error initializing Graph for user auth");
+            System.out.println(e.getMessage());
+        }
     }
-    */
+
+
 
     // Retrieve the username and password for the user's Onedrive account.
     public static void getOnedriveLogin() {

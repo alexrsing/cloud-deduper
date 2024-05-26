@@ -13,6 +13,7 @@ import com.opencsv.CSVWriter;
 import javax.swing.*;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -79,7 +80,16 @@ public class GenericFileDeduplicator {
         displayFinalDialog();
     */
 
-        OnedriveDeduper.initializeGraphClient();
+
+        final Properties oAuthProperties = new Properties();
+        try {
+            oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
+        } catch (IOException e) {
+            System.out.println("Unable to read OAuth configuration.");
+            return;
+        }
+        OnedriveDeduper.initializeGraph(oAuthProperties);
+        //OnedriveDeduper.initializeGraphClientByPassword();
         OnedriveDeduper.printDisplayName();
     }
 

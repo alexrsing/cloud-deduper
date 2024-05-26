@@ -83,7 +83,6 @@ public class Graph {
 }
  */
 
-import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
 
@@ -92,15 +91,8 @@ import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.DeviceCodeCredential;
 import com.azure.identity.DeviceCodeCredentialBuilder;
 import com.azure.identity.DeviceCodeInfo;
-import com.microsoft.graph.models.BodyType;
-import com.microsoft.graph.models.EmailAddress;
-import com.microsoft.graph.models.ItemBody;
-import com.microsoft.graph.models.Message;
-import com.microsoft.graph.models.MessageCollectionResponse;
-import com.microsoft.graph.models.Recipient;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
-import com.microsoft.graph.users.item.sendmail.SendMailPostRequestBody;
 // </ImportSnippet>
 
 public class Graph {

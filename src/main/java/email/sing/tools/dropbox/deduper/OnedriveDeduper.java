@@ -40,6 +40,7 @@ public class OnedriveDeduper {
 
     // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
     public static void initializeGraphClient() throws Exception {
+
         /*
         Properties prop = readPropertiesFile("oAuth.properties");
         final String clientId = prop.getProperty("clientId");
@@ -56,6 +57,7 @@ public class OnedriveDeduper {
         scopes.add("files.readwrite.all");
         final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
         String authority = "https://login.microsoftonline.com/organizations";
+
 
         TokenRequestContext context = new TokenRequestContext();
         context.setScopes(scopes);

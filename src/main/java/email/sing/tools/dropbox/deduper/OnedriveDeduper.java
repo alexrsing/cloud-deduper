@@ -9,94 +9,33 @@
 package email.sing.tools.dropbox.deduper;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.UsernamePasswordCredentialBuilder;
-import com.microsoft.graph.models.User;
-import com.microsoft.graph.serviceclient.GraphServiceClient;
+import com.microsoft.graph.drives.DrivesRequestBuilder;
+import com.microsoft.graph.models.*;
 
+import com.microsoft.graph.serviceclient.GraphServiceClient;
+import com.microsoft.graph.users.item.drives.item.DriveItemRequestBuilder;
+
+import javax.print.DocFlavor;
 import javax.swing.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.LinkedList;
+import java.io.InputStream;
+import java.util.*;
 import java.util.List;
-import java.util.Properties;
 
 public class OnedriveDeduper {
 
     public static GraphServiceClient graphClient;
     public static User onedriveUser;
+
     private static String username;
     private static String password;
 
-    //Azure App Properties
-    private static final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
-    private static final String tenantId = "8e792bc9-49f9-4568-9896-92817f7bd5df";
 
-    public OnedriveDeduper() throws Exception {
-    }
-
-
-    // Create the authentication provider for the GraphServiceClient and create the GraphServiceClient.
-    public static void initializeGraphClientByPassword() throws Exception {
-
-        /*
-        Properties prop = readPropertiesFile("oAuth.properties");
-        final String clientId = prop.getProperty("clientId");
-        final List<String> scopes = Arrays.asList(prop.getProperty("app.graphUserScopes")
-                .split(","));
-        final String tenantId = prop.getProperty("tenantId");
-
-         */
-
-        List<String> scopes = new LinkedList<>();
-        scopes.add("user.read");
-        scopes.add("profile");
-        scopes.add("openid");
-        scopes.add("files.readwrite.all");
-        String authority = "https://login.microsoftonline.com/organizations";
-
-        //TokenRequestContext context = new TokenRequestContext();
-        //context.setScopes(scopes);
-
-        username = "alexs@singtech.com.au";
-        password = "0nT@rget!";
-
-        TokenCredential credential = new UsernamePasswordCredentialBuilder()
-                .clientId(clientId)
-                .tenantId(tenantId)
-                .username(username)
-                .password(password)
-                .build();
-
-
-        if (null == scopes || null == credential) {
-            throw new Exception("Unexpected error");
-        }
-
-        graphClient = new GraphServiceClient(credential, Arrays.toString(scopes.toArray()));
-
-        /*
-        graphClient = GraphServiceClient.builder()
-                .authenticationProvider(new IAuthenticationProvider() {
-                    @NotNull
-                    @Override
-                    public CompletableFuture<String> getAuthorizationTokenAsync(@NotNull URL requestUrl) {
-                        CompletableFuture<String> future = new CompletableFuture<>();
-                        future.complete(credential.getTokenSync(context).getToken());
-                        return future;
-                    }
-                })
-                .buildClient();
-         */
-
-        onedriveUser = graphClient.me().get();
-        }
-
-    static void initializeGraph(Properties properties) {
+    static void initializeGraph() {
         try {
-            Graph.initializeGraphForUserAuth(properties,
-                    challenge -> System.out.println(challenge.getMessage()));
+            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
         } catch (Exception e)
         {
             System.out.println("Error initializing Graph for user auth");
@@ -104,13 +43,12 @@ public class OnedriveDeduper {
         }
     }
 
-
-
     // Retrieve the username and password for the user's Onedrive account.
     public static void getOnedriveLogin() {
         username = JOptionPane.showInputDialog("Please enter your username for your Onedrive account.");
         password = JOptionPane.showInputDialog("Please enter your password for your Onedrive account.");
     }
+
 
     // Read the details about Azure App Registration from .properties file.
     public static Properties readPropertiesFile(String fileName) throws IOException {
@@ -130,25 +68,58 @@ public class OnedriveDeduper {
         return prop;
     }
 
-    /*
-    // Find the files in the Onedrive folder.
-    public static DriveItemCollectionResponse getFiles(String startPath, boolean recursive) {
-        DriveItemCollectionResponse entries = graphClient.drives()
-                .byId("{drive-id}").items()
-                .byDriveItemId("{driveItem-id}")
-                .children().get();
-        return entries;
+
+    // Find files recursively
+    public static List<DriveItem> findFiles(String start, boolean recursive) {
+        String startPath = "/root/" + start;
+        if (!recursive) {
+            return findFiles(startPath);
+        }
+        else {
+            List<DriveItem> driveItems = graphClient.drives().withUrl(startPath).get().getValue().get(0).getItems();
+            assert driveItems != null;
+            for (DriveItem i : driveItems) {
+                if (i.getFolder() != null) {
+                    return findFiles(i.getWebUrl(), true);
+                }
+            }
+
+            return driveItems;
+        }
+
     }
 
-    public static List<GenericFileMetadata> mapToGenericFiles() {
+    // Find files non-recursively.
+    public static List<DriveItem> findFiles(String startPath) {
+        String userid = graphClient.me().get().getId();
+        List<DriveItem> driveItems = graphClient.users().byUserId(userid).drives().byDriveId("FD53DB0B84044140%21104").get().getItems();
 
+
+        assert driveItems != null;
+
+        for (DriveItem i : driveItems) {
+            if (i.getFolder() != null) {
+                driveItems.remove(i);
+            }
+        }
+
+        return driveItems;
     }
-     */
+
+    public static void printDetails() {
+        String userid = graphClient.me().get().getId();
+        System.out.println("User ID: " + userid);
+        assert userid != null;
+
+//        var drive = graphClient.sites().bySiteId(config.getSiteId()).drive().get();
+        Drive drive = graphClient.drives().byDriveId("fd53db0b84044140").get();
+        List<DriveItem> driveItems = graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId("root:/Sample:").children().get().getValue();
+        driveItems.stream().forEach(i -> System.out.println(i.getFile().getHashes().getSha256Hash()));
+    }
 
     // Delete files
-    public static void printDisplayName() {
-        System.out.println(onedriveUser.getDisplayName());
-    }
+
 
     // Move files
+
 }

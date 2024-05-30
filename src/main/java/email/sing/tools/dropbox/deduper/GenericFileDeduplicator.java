@@ -9,6 +9,7 @@
 package email.sing.tools.dropbox.deduper;
 
 import com.opencsv.CSVWriter;
+import reactor.core.publisher.Sinks;
 
 import javax.swing.*;
 import java.io.File;
@@ -29,10 +30,11 @@ public class GenericFileDeduplicator {
     public void run() throws Exception {
         /*
         int option = getUserPreferences();
-        //populateFiles();
+        populateFiles();
 
         if (cloudService.equals("Dropbox")) {
             DropboxDeduper dropboxDeduper = new DropboxDeduper();
+
             if (option == 0 && confirmDelete() && listDeletedFiles()) {
                 // Delete files
 
@@ -47,20 +49,8 @@ public class GenericFileDeduplicator {
                 DropboxDeduper.uploadLogFile(duplicateLogs);
             }
         }
-        else {
+        else if (cloudService.equals("Onedrive")){
             // Set up and create onedriveClient
-
-         */
-            /*
-            final Properties oAuthProperties = new Properties();
-            try {
-                oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
-            } catch (IOException e) {
-                System.out.println("Unable to read OAuth configuration.");
-                return;
-            }
-            OnedriveDeduper.initializeGraph(oAuthProperties);
-
 
 
             if (option == 0 && confirmDelete() && listDeletedFiles()) {
@@ -77,26 +67,26 @@ public class GenericFileDeduplicator {
             }
         }
 
-        displayFinalDialog();
-    */
-
+        //displayFinalDialog();
 
         final Properties oAuthProperties = new Properties();
         try {
             oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
         } catch (IOException e) {
-            System.out.println("Unable to read OAuth configuration.");
+            System.err.println("Unable to read OAuth configuration.");
             return;
         }
-        OnedriveDeduper.initializeGraph(oAuthProperties);
-        //OnedriveDeduper.initializeGraphClientByPassword();
-        OnedriveDeduper.printDisplayName();
+        */
+
+        OnedriveDeduper.initializeGraph();
+        //OnedriveDeduper.findFiles("", false);
+        OnedriveDeduper.printDetails();
     }
+
 
     /*
      * UI for app
      */
-    /*
     private static int getUserPreferences() throws Exception {
         String title = "File De-duplicator";
         String[] serviceOptions = {"Dropbox", "Onedrive"};
@@ -104,7 +94,7 @@ public class GenericFileDeduplicator {
         cloudService = serviceOptions[cs];
 
         if (cloudService.equals("Onedrive")) {
-            OnedriveDeduper.getOnedriveLogin();
+            //OnedriveDeduper.initializeGraph();
         }
 
         // While the startPath is null or does not exist, keep asking.
@@ -129,7 +119,6 @@ public class GenericFileDeduplicator {
         }
         return selection;
     }
-    */
 
     /*
      * Get a list of all files in a specified path from either Dropbox or OneDrive and add them the "files" map

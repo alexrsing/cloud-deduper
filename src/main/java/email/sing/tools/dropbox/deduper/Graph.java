@@ -8,17 +8,13 @@
 
 package email.sing.tools.dropbox.deduper;
 
-import java.util.function.Consumer;
-
-import com.azure.core.credential.AccessToken;
-import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.DeviceCodeCredential;
 import com.azure.identity.DeviceCodeCredentialBuilder;
 import com.azure.identity.DeviceCodeInfo;
-import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
 import javax.swing.*;
+import java.util.function.Consumer;
 
 public class Graph {
 

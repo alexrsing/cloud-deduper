@@ -79,8 +79,8 @@ public class GenericFileDeduplicator {
         */
 
         OnedriveDeduper.initializeGraph();
-        //OnedriveDeduper.findFiles("", false);
-        OnedriveDeduper.printDetails();
+        OnedriveDeduper.findFiles("Sample:", true);
+        //OnedriveDeduper.printDetails();
     }
 
 
@@ -94,11 +94,11 @@ public class GenericFileDeduplicator {
         cloudService = serviceOptions[cs];
 
         if (cloudService.equals("Onedrive")) {
-            //OnedriveDeduper.initializeGraph();
+            OnedriveDeduper.initializeGraph();
         }
 
         // While the startPath is null or does not exist, keep asking.
-        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory):");
+        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory)./n If you are using Onedrive, please enter the name of the parent folder:");
 
         String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
         int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
@@ -106,6 +106,7 @@ public class GenericFileDeduplicator {
         if (selection == -1) {
             System.exit(0);
         }
+
         String[] recursiveOptions = {"Cancel", "No", "Yes"};
         int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, recursiveOptions, recursiveOptions[0]);

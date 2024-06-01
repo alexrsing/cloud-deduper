@@ -8,30 +8,17 @@
 
 package email.sing.tools.dropbox.deduper;
 
-import com.azure.core.credential.TokenCredential;
-import com.microsoft.graph.drives.DrivesRequestBuilder;
-import com.microsoft.graph.models.*;
-
+import com.microsoft.graph.models.Drive;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
-import com.microsoft.graph.users.item.drives.item.DriveItemRequestBuilder;
 
-import javax.print.DocFlavor;
-import javax.swing.*;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
-import java.util.List;
 
 public class OnedriveDeduper {
 
     public static GraphServiceClient graphClient;
     public static User onedriveUser;
-
-    private static String username;
-    private static String password;
-
 
     static void initializeGraph() {
         try {
@@ -43,81 +30,157 @@ public class OnedriveDeduper {
         }
     }
 
-    // Retrieve the username and password for the user's Onedrive account.
-    public static void getOnedriveLogin() {
-        username = JOptionPane.showInputDialog("Please enter your username for your Onedrive account.");
-        password = JOptionPane.showInputDialog("Please enter your password for your Onedrive account.");
-    }
-
-
-    // Read the details about Azure App Registration from .properties file.
-    public static Properties readPropertiesFile(String fileName) throws IOException {
-        FileInputStream fis = null;
-        Properties prop = null;
-        try {
-            fis = new FileInputStream(fileName);
-            prop = new Properties();
-            prop.load(fis);
-        } catch(FileNotFoundException fnfe) {
-            fnfe.printStackTrace();
-        } catch(IOException ioe) {
-            ioe.printStackTrace();
-        } finally {
-            fis.close();
-        }
-        return prop;
-    }
-
-
     // Find files recursively
-    public static List<DriveItem> findFiles(String start, boolean recursive) {
-        String startPath = "/root/" + start;
+    public static List<DriveItem> findFiles(String folderName, boolean recursive) throws InterruptedException {
+        String startPath = "/root:/" + folderName;
         if (!recursive) {
+            // Call non-recursive method if recursive == false.
             return findFiles(startPath);
         }
         else {
-            List<DriveItem> driveItems = graphClient.drives().withUrl(startPath).get().getValue().get(0).getItems();
+            Drive drive = graphClient.drives()
+                    .byDriveId("fd53db0b84044140")
+                    .get();
+
+            List<DriveItem> driveItems = graphClient.drives()
+                    .byDriveId(drive.getId())
+                    .items()
+                    .byDriveItemId(startPath)
+                    .children()
+                    .get()
+                    .getValue();
+
             assert driveItems != null;
+
             for (DriveItem i : driveItems) {
                 if (i.getFolder() != null) {
-                    return findFiles(i.getWebUrl(), true);
+                    driveItems.remove(i);
+                    // May need to encode folder name before recursive call so that it is URL safe.
+                    return findFiles(i.getName() + ":", true);
                 }
             }
 
+            removeFolders(driveItems);
             return driveItems;
         }
-
     }
 
     // Find files non-recursively.
-    public static List<DriveItem> findFiles(String startPath) {
-        String userid = graphClient.me().get().getId();
-        List<DriveItem> driveItems = graphClient.users().byUserId(userid).drives().byDriveId("FD53DB0B84044140%21104").get().getItems();
+    public static List<DriveItem> findFiles(String folderName) throws InterruptedException {
+        String startPath = "root:/" + folderName;
+
+        Drive drive = graphClient.drives()
+                .byDriveId("fd53db0b84044140")
+                .get();
+
+        List<DriveItem> driveItems = graphClient.drives()
+                .byDriveId(drive.getId())
+                .items()
+                .byDriveItemId(startPath)
+                .children()
+                .get()
+                .getValue();
 
 
-        assert driveItems != null;
+//        driveItems.stream().forEach(i -> System.out.println(i.getFile().getHashes().getSha256Hash()));
 
-        for (DriveItem i : driveItems) {
-            if (i.getFolder() != null) {
-                driveItems.remove(i);
-            }
-        }
+        // Get the drive used to find drive id to get files.
+//        Drive drive = graphClient.sites().bySiteId(config.getSiteId()).drive().get();
+
+        removeFolders(driveItems);
 
         return driveItems;
     }
 
-    public static void printDetails() {
-        String userid = graphClient.me().get().getId();
-        System.out.println("User ID: " + userid);
-        assert userid != null;
+    /*
+     * Remove any folders that are found by findFiles(). To be called before returning the finalized list.
+     */
+    private static void removeFolders(List<DriveItem> driveItems) throws InterruptedException {
+        Iterator<DriveItem> it = driveItems.iterator();
 
-//        var drive = graphClient.sites().bySiteId(config.getSiteId()).drive().get();
-        Drive drive = graphClient.drives().byDriveId("fd53db0b84044140").get();
-        List<DriveItem> driveItems = graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId("root:/Sample:").children().get().getValue();
-        driveItems.stream().forEach(i -> System.out.println(i.getFile().getHashes().getSha256Hash()));
+        while (it.hasNext()) {
+            DriveItem next = it.next();
+            if (next.getFolder() != null) {
+                System.out.println("Removing: " + next.getName());
+                it.remove();
+                Thread.sleep(200);
+            }
+        }
+    }
+
+    // Sort the files found by findFiles() by the sha256Hash or the file size is the hash is not found.
+    private static Map<String, List<DriveItem>> sortFilesByHash(List<DriveItem> driveItems) {
+        Map<String, List<DriveItem>> duplicates = new HashMap<>();
+        driveItems.stream().forEach(d -> {
+            String sha256Hash = d.getFile().getHashes().getSha256Hash();
+            if (duplicates.containsKey(sha256Hash)) {
+                duplicates.get(sha256Hash).add(d);
+            }
+            else if (findFileSize(duplicates, d.getSize()) != null) {
+                String key = findFileSize(duplicates, d.getSize());
+                duplicates.get(key).add(d);
+            }
+            else {
+                List<DriveItem> list = new LinkedList<>();
+                list.add(d);
+                duplicates.put(sha256Hash, list);
+            }
+        });
+
+        return duplicates;
+    }
+
+    // Searches the map of duplicate files for a file of a specified size in bytes.
+    // Once a file of the same size is found, the sha256Hash/map key is returned or null if not found.
+    private static String findFileSize(Map<String, List<DriveItem>> map, Long size) {
+        try {
+            assert map != null;
+            Set<String> keySet = map.keySet();
+            for (String key : keySet) {
+                List<DriveItem> mapValue = map.get(key);
+                for (DriveItem d : mapValue) {
+                    if (d.getSize() == size) {
+                        return d.getFile().getHashes().getSha256Hash();
+                    }
+                }
+            }
+        }
+        catch (AssertionError e) {
+            System.out.println("map is empty - file size cannot be found.");
+            return null;
+        }
+        return null;
+    }
+
+    // Print the name of all files returned by findFiles() to test output.
+    public static void printDetails() throws InterruptedException {
+        List<DriveItem> list = findFiles("");
+
+        for (DriveItem d : list) {
+            System.out.println(d.getName());
+        }
     }
 
     // Delete files
+    static void deleteFiles(Map<String, List<GenericFileMetadata>> files) {
+        Map<String, List<DriveItem>> driveItems = mapToDriveItem(files);
+        for (String key : driveItems.keySet()) {
+            for (DriveItem item : driveItems.get(key)) {
+                graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId(item.getId()).delete();
+            }
+        }
+    }
+
+    private static Map<String, List<DriveItem>> mapToDriveItem(Map<String, List<GenericFileMetadata>> files) {
+        Map<String, List<DriveItem>> driveItems = new HashMap<>();
+        for (String key : files.keySet()) {
+            List<DriveItem> items = new LinkedList<>();
+            for (GenericFileMetadata file : files.get(key)) {
+
+            }
+        }
+        return driveItems;
+    }
 
 
     // Move files

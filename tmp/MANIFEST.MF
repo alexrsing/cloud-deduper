@@ -1,0 +1,13 @@
+Manifest-Version: 1.0
+Main-Class: email.sing.tools.dropbox.deduper.CloudDeduper
+Class-Path: jackson-core-2.7.9.jar jsr305-3.0.2.jar junit-jupiter-5.9.1.
+ jar junit-jupiter-params-5.9.1.jar j2objc-annotations-1.3.jar opentest4
+ j-1.2.0.jar guava-31.1-jre.jar error_prone_annotations-2.11.0.jar junit
+ -jupiter-api-5.9.1.jar junit-jupiter-engine-5.9.1.jar commons-text-1.10
+ .0.jar checker-qual-3.12.0.jar commons-lang3-3.12.0.jar commons-collect
+ ions4-4.4.jar junit-platform-engine-1.9.1.jar opencsv-5.8.jar commons-l
+ ogging-1.2.jar junit-platform-commons-1.9.1.jar dropbox-core-sdk-5.4.4.
+ jar failureaccess-1.0.1.jar commons-collections-3.2.2.jar listenablefut
+ ure-9999.0-empty-to-avoid-conflict-with-guava.jar commons-beanutils-1.9
+ .4.jar
+

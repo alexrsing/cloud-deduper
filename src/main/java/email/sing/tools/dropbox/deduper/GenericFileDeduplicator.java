@@ -9,12 +9,10 @@
 package email.sing.tools.dropbox.deduper;
 
 import com.opencsv.CSVWriter;
-import reactor.core.publisher.Sinks;
 
 import javax.swing.*;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -22,7 +20,7 @@ public class GenericFileDeduplicator {
 
     private static String cloudService = "";
     private static boolean withRecursive;
-    private static String startPath;
+    public static String startPath;
 
     private static Map<String, List<GenericFileMetadata>> duplicateFiles;
 
@@ -79,7 +77,7 @@ public class GenericFileDeduplicator {
         */
 
         OnedriveDeduper.initializeGraph();
-        OnedriveDeduper.findFiles("Sample:", true);
+        OnedriveDeduper.getFiles("Sample:", true);
         //OnedriveDeduper.printDetails();
     }
 
@@ -95,6 +93,9 @@ public class GenericFileDeduplicator {
 
         if (cloudService.equals("Onedrive")) {
             OnedriveDeduper.initializeGraph();
+        }
+        else if (cloudService.equals("Dropbox")) {
+            DropboxDeduper.getDropboxClient();
         }
 
         // While the startPath is null or does not exist, keep asking.
@@ -115,9 +116,7 @@ public class GenericFileDeduplicator {
         }
 
         withRecursive = recursive == 2;
-        if (recursive == 0) {
-            System.exit(0);
-        }
+
         return selection;
     }
 
@@ -128,12 +127,11 @@ public class GenericFileDeduplicator {
         // Get file from OneDrive or Dropbox depending on user choice
         List<GenericFileMetadata> entries;
         if (cloudService.equals("Dropbox")) {
-            //DropboxDeduper deduper = new DropboxDeduper();
             entries = DropboxDeduper.mapToGenericFiles(DropboxDeduper.getFiles(startPath, withRecursive));
         }
         else {
             OnedriveDeduper deduper = new OnedriveDeduper();
-            //entries = OnedriveDeduper.mapToGenericFiles(OnedriveDeduper.getFiles(startPath, withRecursive));
+            entries = OnedriveDeduper.mapToGenericFiles(OnedriveDeduper.getFiles(startPath, withRecursive));
         }
         /*
         for (GenericFileMetadata f : entries) {

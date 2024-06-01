@@ -31,7 +31,7 @@ public class DropboxDeduper {
 
 	private static boolean withRecursive;
 
-	private static String startPath;
+	//public static String startPath;
     private static final String ACCESS_TOKEN;
 
 	static {
@@ -84,7 +84,7 @@ public class DropboxDeduper {
 	/*
 	 * Creates a new Dropbox client to make remote calls to the Dropbox API user endpoints
 	 */
-    private DbxClientV2 getDropboxClient() {
+    public static DbxClientV2 getDropboxClient() {
         System.out.println("Using Access Token: " + ACCESS_TOKEN);
         DbxRequestConfig config = DbxRequestConfig.newBuilder("dropbox/deduper").build();
         return new DbxClientV2(config, ACCESS_TOKEN);
@@ -147,7 +147,7 @@ public class DropboxDeduper {
 		ep.setBackground(label.getBackground());
 
 		// Show dialog box
-        return JOptionPane.showInputDialog(null, ep, "Dropbox De-duplicator", JOptionPane.OK_CANCEL_OPTION);
+        return JOptionPane.showInputDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
 	}
 
 	 /*
@@ -342,7 +342,7 @@ public class DropboxDeduper {
 		}
 
 		// Delete any empty folders.
-		getFiles(baseFolderName + startPath, withRecursive).forEach(Metadata -> {
+		getFiles(baseFolderName + GenericFileDeduplicator.startPath, withRecursive).forEach(Metadata -> {
 			if (Metadata instanceof FolderMetadata folder) {
 				try {
 					if (getFiles(folder.getPathDisplay(), true).isEmpty()) {

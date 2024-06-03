@@ -3,7 +3,7 @@
  * Mr. Stutler
  * 4/15/2024
  *
- * CommonFileMetadata stores data for file metadata retrieved by DropboxDeduper and OneDriveDeduper.
+ * GenericFileMetadata stores constructors for the common file type between Onedrive and Dropbox files.
  */
 
 package email.sing.tools.dropbox.deduper;
@@ -20,19 +20,13 @@ public class GenericFileMetadata {
     private int fileSize;
 
     // Map of all duplicate files without the original.
-    public static Map<String, List<GenericFileMetadata>> files;
+//    public static Map<String, List<GenericFileMetadata>> files;
 
     // Map for all the original files.
-    public static Map<String, GenericFileMetadata> originalFiles;
+//    public static Map<String, GenericFileMetadata> originalFiles;
+
 
     // GenericFileMetadata object constructor.
-    public GenericFileMetadata(String fileName, String fileRoot, String contentHash) {
-        this.fileName = fileName;
-        this.contentHash = contentHash;
-        this.fileRoot = fileRoot;
-    }
-
-    // GenericFileMetadata object constructor with file size.
     public GenericFileMetadata(String fileName, String fileRoot, String contentHash, int fileSize) {
         this.fileName = fileName;
         this.fileRoot = fileRoot;

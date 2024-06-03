@@ -3,12 +3,13 @@
  * Mr. Stutler
  * 4/15/2024
  *
- * CommonFileDeduplicator deduplicates files found by DropboxDeduper and OneDriveDeduper.
+ * GenericFileDeduplicator deduplicates files found by DropboxDeduper and OneDriveDeduper.
  */
 
 package email.sing.tools.dropbox.deduper;
 
 import com.opencsv.CSVWriter;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.io.File;
@@ -19,84 +20,70 @@ import java.util.*;
 public class GenericFileDeduplicator {
 
     private static String cloudService = "";
-    private static boolean withRecursive;
+    private static boolean withRecursion;
     public static String startPath;
+    DedupeFileAccessor dedupeFileAccessor;
 
     private static Map<String, List<GenericFileMetadata>> duplicateFiles;
+    private static Map<String, GenericFileMetadata> originalFiles;
+
 
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
         /*
         int option = getUserPreferences();
-        populateFiles();
+        dedupeFileAccessor = createDedupeFileAccessor(cloudService);
+        dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
+        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
+        populateMap(files);
 
-        if (cloudService.equals("Dropbox")) {
-            DropboxDeduper dropboxDeduper = new DropboxDeduper();
-
-            if (option == 0 && confirmDelete() && listDeletedFiles()) {
-                // Delete files
-
-            }
-            else if (option == 1) {
-                // Create folder and move files
-
-            }
-            else {
-                // Upload log file to Dropbox
-                File duplicateLogs = logDuplicateFiles();
-                DropboxDeduper.uploadLogFile(duplicateLogs);
-            }
+        /*
+        if (option == 1 && confirmDelete() && listDeletedFiles()) {
+            dedupeFileAccessor.deleteFiles(duplicateFiles);
         }
-        else if (cloudService.equals("Onedrive")){
-            // Set up and create onedriveClient
-
-
-            if (option == 0 && confirmDelete() && listDeletedFiles()) {
-                // Delete files
-
-            }
-            else if (option == 1) {
-                // Create folder and move files
-
-            }
-            else {
-                // Upload log file to Onedrive.
-
-            }
+        else if (option == 2) {
+            dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+        }
+        else if (option == 3) {
+            File logFile = logDuplicateFiles();
+            dedupeFileAccessor.uploadLogFile(logFile);
         }
 
-        //displayFinalDialog();
+        displayFinalDialog();
+         */
 
-        final Properties oAuthProperties = new Properties();
-        try {
-            oAuthProperties.load(GenericFileDeduplicator.class.getResourceAsStream("oAuth.properties"));
-        } catch (IOException e) {
-            System.err.println("Unable to read OAuth configuration.");
-            return;
+        dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
+        dedupeFileAccessor.init();
+        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("Sample:", false);
+        populateMap(files);
+
+    }
+
+    private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {
+        DedupeFileAccessor dedupeFileAccessor;
+        if ("Dropbox".equals(service)) {
+            dedupeFileAccessor = new DropboxDeduper();
         }
-        */
-
-        OnedriveDeduper.initializeGraph();
-        OnedriveDeduper.getFiles("Sample:", true);
-        //OnedriveDeduper.printDetails();
+        else if ("Onedrive".equals(service)){
+            dedupeFileAccessor = new OnedriveDeduper();
+        }
+        else {
+            throw new RuntimeException("Cloud service not specified.");
+        }
+        return dedupeFileAccessor;
     }
 
 
     /*
      * UI for app
      */
-    private static int getUserPreferences() throws Exception {
+    private int getUserPreferences() throws Exception {
         String title = "File De-duplicator";
         String[] serviceOptions = {"Dropbox", "Onedrive"};
         int cs = JOptionPane.showOptionDialog(null, "What cloud service would you like to use?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
         cloudService = serviceOptions[cs];
 
-        if (cloudService.equals("Onedrive")) {
-            OnedriveDeduper.initializeGraph();
-        }
-        else if (cloudService.equals("Dropbox")) {
-            DropboxDeduper.getDropboxClient();
-        }
+        dedupeFileAccessor.init();
 
         // While the startPath is null or does not exist, keep asking.
         startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory)./n If you are using Onedrive, please enter the name of the parent folder:");
@@ -115,7 +102,7 @@ public class GenericFileDeduplicator {
             System.exit(0);
         }
 
-        withRecursive = recursive == 2;
+        withRecursion = recursive == 2;
 
         return selection;
     }
@@ -123,46 +110,57 @@ public class GenericFileDeduplicator {
     /*
      * Get a list of all files in a specified path from either Dropbox or OneDrive and add them the "files" map
      */
-    private static void populateFiles() throws Exception {
-        // Get file from OneDrive or Dropbox depending on user choice
-        List<GenericFileMetadata> entries;
-        if (cloudService.equals("Dropbox")) {
-            entries = DropboxDeduper.mapToGenericFiles(DropboxDeduper.getFiles(startPath, withRecursive));
-        }
-        else {
-            OnedriveDeduper deduper = new OnedriveDeduper();
-            entries = OnedriveDeduper.mapToGenericFiles(OnedriveDeduper.getFiles(startPath, withRecursive));
-        }
-        /*
-        for (GenericFileMetadata f : entries) {
+    private void populateMap(List<GenericFileMetadata> files) {
+        duplicateFiles = new HashMap<>();
+        originalFiles = new HashMap<>();
+        for (GenericFileMetadata f : files) {
             String contentHash = f.getContentHash();
-            if (!GenericFileMetadata.files.containsKey(f.getContentHash())) {
-                List<GenericFileMetadata> fileList = new LinkedList<>();
-                fileList.add(f);
-                GenericFileMetadata.files.put(contentHash, fileList);
+            if (duplicateFiles.containsKey(contentHash)) {
+                duplicateFiles.get(contentHash).add(f);
+            }
+            else if (findFileSize(f.getFileSize()) != null) {
+                duplicateFiles.get(findFileSize(f.getFileSize())).add(f);
             }
             else {
-                GenericFileMetadata.files.get(contentHash).add(f);
+                List<GenericFileMetadata> list = new LinkedList<>();
+                list.add(f);
+                duplicateFiles.put(f.getContentHash(), list);
             }
         }
-         */
-            keepOriginalFile();
+
+        keepOriginalFile();
+    }
+
+    /*
+     * Find the file size in the map.
+     */
+    private String findFileSize(int fileSize) {
+        if (duplicateFiles != null) {
+            for (String key : duplicateFiles.keySet()) {
+                for (GenericFileMetadata f : duplicateFiles.get(key)) {
+                    if (f.getFileSize() == fileSize) {
+                        return f.getContentHash();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /*
      * Remove first file from each list in the files values.
      */
-    private static void keepOriginalFile() {
-        Map<String, List<GenericFileMetadata>> files = GenericFileMetadata.files;
-        Set<String> myFileList = files.keySet();
+    private void keepOriginalFile() {
+        Set<String> genericFileKeys = duplicateFiles.keySet();
 
         // Get rid of the first file in the files map - it is going to be the original (not duplicate)
-        for (String contentHash : myFileList) {
-            if (files.get(contentHash).size() == 1) {
-                GenericFileMetadata.files.remove(contentHash);
+        for (String contentHash : genericFileKeys) {
+            if (duplicateFiles.get(contentHash).size() == 1) {
+                originalFiles.put(contentHash, duplicateFiles.get(contentHash).get(0));
+                duplicateFiles.remove(contentHash);
             }
             else {
-                GenericFileMetadata.files.get(contentHash).remove(0);
+                duplicateFiles.get(contentHash).remove(0);
             }
         }
     }
@@ -170,7 +168,7 @@ public class GenericFileDeduplicator {
     /*
      * If the user chooses to delete, they must confirm before the program will run.
      */
-    private static boolean confirmDelete() {
+    private boolean confirmDelete() {
         String[] confirmOption = {"Cancel", "No", "Yes"};
         int option = JOptionPane.showOptionDialog(null, "Are you sure you want to delete these files?", "Dropbox De-duplicator",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, confirmOption, confirmOption[0]);
@@ -182,15 +180,15 @@ public class GenericFileDeduplicator {
      * Final dialog box in program,
      * tells user how many duplicates files were found out of the total number of files de-duplicated.
      */
-    private static void displayFinalDialog() {
+    private void displayFinalDialog() {
         int totalFiles = getFileMapSize();
-        JOptionPane.showMessageDialog(null, GenericFileMetadata.files.size() + " duplicate(s) found out of " + totalFiles + " files.");
+        JOptionPane.showMessageDialog(null, "Of" + duplicateFiles.size() + ", " + totalFiles + " duplicates have been found");
     }
 
     /*
      * List files to be deleted if user chooses to delete.
      */
-    private static boolean listDeletedFiles() {
+    private boolean listDeletedFiles() {
         String[] confirmOption = {"Cancel", "Ok"};
         int option = JOptionPane.showOptionDialog(null, "Deleting:\n" + listFileNamesString(), "Dropbox De-duplicator",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null, confirmOption, confirmOption[0]);
@@ -201,11 +199,10 @@ public class GenericFileDeduplicator {
     /*
      * Return the total number of duplicate files.
      */
-    private static int getFileMapSize() {
-        Map<String, List<GenericFileMetadata>> files = GenericFileMetadata.files;
+    private int getFileMapSize() {;
         int size = 0;
-        for (String hashcode : files.keySet()) {
-            size += files.get(hashcode).size();
+        for (String hashcode : duplicateFiles.keySet()) {
+            size += duplicateFiles.get(hashcode).size();
         }
         return size;
     }
@@ -213,7 +210,7 @@ public class GenericFileDeduplicator {
     /*
      * Turn LinkedList of duplicate fies' names into one string.
      */
-    private static String listFileNamesString() {
+    private String listFileNamesString() {
         StringBuilder namesString = new StringBuilder();
         ArrayList<String> fileNames = listFileNames();
         for (String name : fileNames) {
@@ -225,12 +222,11 @@ public class GenericFileDeduplicator {
     /*
      * Return linked list of the names of duplicate files.
      */
-    private static ArrayList<String> listFileNames() {
-        ArrayList<String> fileNameList = new ArrayList<>(getFileMapSize());
-        Map<String, List<GenericFileMetadata>> fileMap = GenericFileMetadata.files;
+    private ArrayList<String> listFileNames() {
+        ArrayList<String> fileNameList = new ArrayList<>(getFileMapSize());;
 
-        for (String key : fileMap.keySet()) {
-            for (GenericFileMetadata file : fileMap.get(key)) {
+        for (String key : duplicateFiles.keySet()) {
+            for (GenericFileMetadata file : duplicateFiles.get(key)) {
                 fileNameList.add(file.getFileName());
             }
         }
@@ -241,11 +237,9 @@ public class GenericFileDeduplicator {
     /*
      * Create spreadsheet of duplicate files with original for reference.
      */
-    private static File logDuplicateFiles() {
+    private File logDuplicateFiles() {
         // first create file object for file placed at location
         // specified by filepath
-        Map<String, List<GenericFileMetadata>> genericFiles = GenericFileMetadata.files;
-        Map<String, GenericFileMetadata> originalFiles = GenericFileMetadata.originalFiles;
 
         File file = new File("Duplicate files log - " + getCurrentDate() + ".csv");
         try {
@@ -260,8 +254,8 @@ public class GenericFileDeduplicator {
             writer.writeNext(header);
 
             String[] data = new String[6];
-            for (String hashCode : genericFiles.keySet()) {
-                for (GenericFileMetadata f : genericFiles.get(hashCode)) {
+            for (String hashCode : duplicateFiles.keySet()) {
+                for (GenericFileMetadata f : duplicateFiles.get(hashCode)) {
                     data[0] = f.getFileName();
                     data[1] = f.getFileRoot();
                     data[2] = f.getFileSize() + " bytes";
@@ -281,7 +275,7 @@ public class GenericFileDeduplicator {
         return file;
     }
 
-    public static void displayErrorMessage(String message) {
+    public void displayErrorMessage(String message) {
         JOptionPane.showMessageDialog(null, message);
     }
 

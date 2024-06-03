@@ -3,9 +3,7 @@
  *  Mr. Stutler
  *  11/3/2023
  *
- * DropboxDeduper takes an inputted path by the user and finds all duplicate files with the option of
- * finding the files recursively. The user will have the option of deleting the files, moving them
- * separate folder, or putting the name, path, and file size of the duplicates in a .txt document.
+ * DropboxDeduper finds files and uses the data to create GenericFileMetadata objects.
  *
  */
 
@@ -14,8 +12,6 @@ package email.sing.tools.dropbox.deduper;
 import com.dropbox.core.*;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
-import com.dropbox.core.v2.users.FullAccount;
-import org.modelmapper.ModelMapper;
 
 import java.awt.*;
 
@@ -27,7 +23,7 @@ import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
-public class DropboxDeduper {
+public class DropboxDeduper implements DedupeFileAccessor {
 
 	private static boolean withRecursive;
 
@@ -48,38 +44,11 @@ public class DropboxDeduper {
     //private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
 	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
 	private static List<FolderMetadata> folders; // Keep the folders that are de-duplicated through to make folder structure
-	private static int totalFiles; // Total number of files in the de-duplication path.
 
-	public void init() throws Exception {
-		printGreeting();
-
+	public void init() {
 		dropboxClient = getDropboxClient();
-		printCurrentAccountInfo();
 	}
 
-	/*
-	public void run() throws Exception {
-		int option = getUserPreferences();
-		if (option != -1) {
-			populateMap(getFiles(startPath, withRecursive), option);
-
-			if (option == 0 && listDeletedFiles() && confirmDelete()) {
-				deleteDuplicateFiles();
-			} else if (option == 1) {
-				//moveFilesToFolder();
-			}
-			//logDuplicateFiles();
-			displayFinalDialog();
-		}
-	}
-	 */
-
-	/*
-	 * Greet the user with the title.
-	 */
-	private void printGreeting() {
-        System.out.println("--------------Dropbox De-duper--------------");
-    }
 
 	/*
 	 * Creates a new Dropbox client to make remote calls to the Dropbox API user endpoints
@@ -150,19 +119,11 @@ public class DropboxDeduper {
         return JOptionPane.showInputDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
 	}
 
-	 /*
-	  * Print the name of the Dropbox user's account details.
-	  */
-    private void printCurrentAccountInfo() throws Exception {
-		FullAccount account = dropboxClient.users().getCurrentAccount();
-		System.out.println(account.getName().getDisplayName());
-	}
-
 	/*
 	 * Return a list of all files in the path.
 	 * If recursive is true, include all the files within sub-folders of the path.
 	 */
-	public static List<Metadata> getFiles(String path, boolean recursive) throws Exception {
+	public List<GenericFileMetadata> getFiles(String path, boolean recursive) throws Exception {
 	    ListFolderResult result = dropboxClient.files().listFolderBuilder(path)
 	         .withRecursive(recursive)
 	         .start();
@@ -173,104 +134,27 @@ public class DropboxDeduper {
 		    entries.addAll(result.getEntries());
 		}
 
-		return entries;
+		removeFolders(entries);
+
+		return mapToGenericFiles(entries);
 	}
 
 	public static List<GenericFileMetadata> mapToGenericFiles(List<Metadata> files) {
 		List<GenericFileMetadata> genericFiles = new ArrayList<>();
-		ModelMapper modelMapper = new ModelMapper();
-		for (Metadata file : files) {
-			GenericFileMetadata genericFile = modelMapper.map(file, GenericFileMetadata.class);
-			genericFiles.add(genericFile);
-		}
-
-		return genericFiles;
+		return files.stream()
+				.map(file -> new GenericFileMetadata(file.getName(), file.getPathLower(), "", 1))
+				.toList();
 	}
 
-	public static List<FileMetadata> mapToDropboxFiles(List<GenericFileMetadata> genericFiles) {
-		List<FileMetadata> dropboxFiles = new LinkedList<>();
-		ModelMapper modelMapper = new ModelMapper();
-
-		for (GenericFileMetadata file : genericFiles) {
-			FileMetadata dropboxFile = modelMapper.map(file, FileMetadata.class);
-			dropboxFiles.add(dropboxFile);
-		}
-
-		return dropboxFiles;
-	}
-
-	public static Map<String, List<FileMetadata>> mapFileMapToDropbox() {
-		Map<String, List<FileMetadata>> duplicateFiles = new HashMap<>();
-		for (String key : GenericFileMetadata.files.keySet()) {
-			List<FileMetadata> dropboxFiles = mapToDropboxFiles(GenericFileMetadata.files.get(key));
-			duplicateFiles.put(key, dropboxFiles);
-		}
-
-		return duplicateFiles;
-	}
-
-
-	/*
-	 * Fills map with all files from the specified path.
-
-	private static void populateMap(List<Metadata> entries, int option) {
-		fileMap = new HashMap<>();
-		originalFiles = new HashMap<>();
-		folders = new LinkedList<>();
-		totalFiles = 0;
-
-	    for (Metadata entry : entries) {
-			if (entry instanceof FileMetadata fileEntry) {
-				totalFiles++;
-
-				if (!fileMap.containsKey(fileEntry.getContentHash())) {
-					AtomicBoolean checkSize = new AtomicBoolean(true);
-					if (!fileMap.isEmpty()) {
-						fileMap.forEach((hashCode, fileList) -> {
-							fileList.forEach(FileMetadata -> {
-
-								// If the file is within two bytes of another file in the map, then it is considered a duplicate.
-								if (Math.abs(FileMetadata.getSize() - fileEntry.getSize()) <= 10) {
-									checkSize.set(false);
-									fileMap.get(hashCode).add(fileEntry);
-								}
-							});
-						});
-					}
-
-					// If the content hash does not exist in the map, and the size is not the same,
-					// then make a new entry in the map and add the file.
-					if (checkSize.get()) {
-						List<FileMetadata> duplicateFiles = new LinkedList<>();
-						duplicateFiles.add(fileEntry);
-						fileMap.put(fileEntry.getContentHash(), duplicateFiles);
-					}
-				}
-				else {
-					fileMap.get(fileEntry.getContentHash()).add(fileEntry);
-				}
-			}
-			else if (entry instanceof FolderMetadata folder && option == 1) {
-				folders.add(folder);
+	private static void removeFolders(List<Metadata> list) {
+		Iterator<Metadata> it = list.iterator();
+		while (it.hasNext()) {
+			Metadata item = it.next();
+			if (item instanceof FolderMetadata) {
+				it.remove();
 			}
 		}
-
-        Set<String> nonDuplicateFileHashCodes = new HashSet<>(fileMap.keySet());
-
-		// Remove the first file in each of the linked list with duplicates
-		// to keep an original file
-	    // Remove any non-duplicates
-	    for (String key : nonDuplicateFileHashCodes) {
-	    	if (fileMap.get(key).size() <= 1) {
-				fileMap.remove(key);
-			}
-			else {
-				originalFiles.put(key, fileMap.get(key).get(0));
-				fileMap.get(key).remove(0);
-			}
-	    }
 	}
-	 */
 
 	/*
 	 * Create a new folder to move duplicate files to.
@@ -306,74 +190,48 @@ public class DropboxDeduper {
 	/*
 	 * Move files to the new folder that is created.
 	 */
-	private static void moveFilesToFolder() throws Exception {
-		String baseFolderName = getFolderName();
-		createFolderHierarchy(baseFolderName);
+	@Override
+	public void moveFilesToFolder(Map<String, List<GenericFileMetadata>> map) throws Exception {
+		String newFolderName = getFolderName();
+		createNewFolder(getFolderName());
 
-		Map<String, List<FileMetadata>> dropboxDuplicates = mapFileMapToDropbox();
-		for (String hashCode : dropboxDuplicates.keySet()) {
-			for (FileMetadata file : dropboxDuplicates.get(hashCode)) {
-
-				if (file != null) {
-					String fromPath = file.getPathDisplay();
-					String toPath = baseFolderName + file.getPathDisplay();
-
+		for (String key : map.keySet()) {
+			for (GenericFileMetadata file : map.get(key)) {
+				String start = file.getFileRoot();
+				String destination = newFolderName;
+				try {
+					MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(start, destination)
+							.withAllowSharedFolder(true)
+							.withAllowOwnershipTransfer(true)
+							.withAutorename(true);
+					moveV2Builder.start();
+					Thread.sleep(600);
+				}
+				catch (RelocationErrorException e) {
 					try {
-						MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
+						MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(start, destination)
 								.withAllowSharedFolder(true)
 								.withAllowOwnershipTransfer(true)
 								.withAutorename(true);
 						moveV2Builder.start();
-					} catch (RelocationErrorException | IllegalArgumentException e) {
-						Thread.sleep(600);
-						try {
-							MoveV2Builder moveV2Builder = dropboxClient.files().moveV2Builder(fromPath, toPath)
-									.withAllowSharedFolder(true)
-									.withAllowOwnershipTransfer(true)
-									.withAutorename(false);
-							moveV2Builder.start();
-						} catch (RelocationErrorException | IllegalArgumentException ep) {
-							ep.printStackTrace();
-						}
+					} catch (RelocationErrorException er) {
+						System.err.println("File could not be moved");
+						throw new RuntimeException(er);
 					}
-					Thread.sleep(600);
 				}
 			}
 		}
-
-		// Delete any empty folders.
-		getFiles(baseFolderName + GenericFileDeduplicator.startPath, withRecursive).forEach(Metadata -> {
-			if (Metadata instanceof FolderMetadata folder) {
-				try {
-					if (getFiles(folder.getPathDisplay(), true).isEmpty()) {
-						try {
-							dropboxClient.files().deleteV2(folder.getPathDisplay());
-						} catch (DbxException e) {
-							throw new RuntimeException(e);
-						}
-					}
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}
-			try {
-				Thread.sleep(600);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-		});
 	}
 
 	/*
 	 * Delete all files in the "Duplicate Files" folder, must have moved them into the folder first.
 	 */
-	private void deleteDuplicateFiles() {
-		Map<String, List<FileMetadata>> dropboxDuplicates = mapFileMapToDropbox();
-
-		for (String key : dropboxDuplicates.keySet()) {
-			for (FileMetadata file : dropboxDuplicates.get(key)) {
+	@Override
+	public void deleteFiles(Map<String, List<GenericFileMetadata>> map) {
+		for (String key : map.keySet()) {
+			for (GenericFileMetadata file : map.get(key)) {
 				try {
-					dropboxClient.files().deleteV2(file.getPathDisplay());
+					dropboxClient.files().deleteV2(file.getFileRoot());
 					Thread.sleep(600);
 				} catch (Exception e) {
 					System.err.println("Error deleting file: " + e);
@@ -385,7 +243,8 @@ public class DropboxDeduper {
 	/*
 	 * Move list to its own file without moving the files.
 	 */
-	public static void uploadLogFile(File logFile) {
+	@Override
+	public void uploadLogFile(File logFile) {
 		try (InputStream in = new FileInputStream(logFile.getName())) {
 				dropboxClient.files().uploadBuilder("/" + logFile.getName())
 						.uploadAndFinish(in);

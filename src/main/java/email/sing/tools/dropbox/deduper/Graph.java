@@ -13,7 +13,6 @@ import com.azure.identity.DeviceCodeCredentialBuilder;
 import com.azure.identity.DeviceCodeInfo;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
-import javax.swing.*;
 import java.util.function.Consumer;
 
 public class Graph {
@@ -34,9 +33,5 @@ public class Graph {
         OnedriveDeduper.graphClient = new GraphServiceClient(deviceCodeCredential, graphUserScopes);
         OnedriveDeduper.onedriveUser = OnedriveDeduper.graphClient.me().get();
 
-    }
-
-    public static void displayOnedriveMessage(String message) {
-        JOptionPane.showConfirmDialog(null, message, "Onedrive Authentication", JOptionPane.OK_CANCEL_OPTION);
     }
 }

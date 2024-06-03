@@ -50,9 +50,6 @@ dependencies {
     // Writing CSV log file.
     implementation 'com.opencsv:opencsv:5.8'
 
-    // Object mapping
-    implementation 'org.modelmapper:modelmapper:2.4.2'
-
     implementation 'org.slf4j:slf4j-api:2.0.13'
     implementation 'org.slf4j:slf4j-simple:2.0.13'
 }

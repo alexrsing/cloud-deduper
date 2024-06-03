@@ -3,7 +3,7 @@
  * Mr. Stutler
  * 4/22/2024
  *
- * OneDriveDeduper retrieves FileMetadata from the user's OneDrive account and uses data to create CommonFileMetadata object.
+ * OneDriveDeduper retrieves FileMetadata from the user's OneDrive account and uses data to create GenericFileMetadata object.
  */
 
 package email.sing.tools.dropbox.deduper;
@@ -13,18 +13,23 @@ import com.microsoft.graph.models.DriveItem;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
+import javax.swing.*;
+import java.io.File;
 import java.util.*;
 
-public class OnedriveDeduper {
+public class OnedriveDeduper implements DedupeFileAccessor {
 
     public static GraphServiceClient graphClient;
     public static User onedriveUser;
     public static String startPath;
     private static Map<String, List<DriveItem>> duplicateFiles;
 
-    static void initializeGraph() {
+    @Override
+    public void init() {
         try {
             Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
+            //Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getMessage()));
+
         } catch (Exception e)
         {
             System.out.println("Error initializing Graph for user auth");
@@ -32,8 +37,19 @@ public class OnedriveDeduper {
         }
     }
 
+    private void displayInitMessage(String message) {
+        JOptionPane.showConfirmDialog(null, message, "Cloud de-duplicator", JOptionPane.OK_CANCEL_OPTION);
+    }
+
+    // Map a list of DriveItem objects to a list of GenericFileMetadata objects.
+    private static List<GenericFileMetadata> mapToGenericFile(List<DriveItem> files) {
+        return files.stream().
+                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha256Hash(), f.getSize().intValue())).
+                toList();
+    }
+
     // Find files recursively
-    public static List<DriveItem> getFiles(String folderName, boolean recursive) throws InterruptedException {
+    public List<GenericFileMetadata> getFiles(String folderName, boolean recursive) throws InterruptedException {
         String startPath = "/root:/" + folderName;
         if (!recursive) {
             // Call non-recursive method if recursive == false.
@@ -63,13 +79,16 @@ public class OnedriveDeduper {
             }
 
             removeFolders(driveItems);
-            return driveItems;
+            return mapToGenericFile(driveItems);
         }
     }
 
     // Find files non-recursively.
-    public static List<DriveItem> getFiles(String folderName) throws InterruptedException {
-        String startPath = "root:/" + folderName;
+    public static List<GenericFileMetadata> getFiles(String folderName) throws InterruptedException {
+//        String startPath = "root:/" + folderName;
+
+        // Get the drive used to find drive id to get files.
+//        Drive drive = graphClient.sites().bySiteId(config.getSiteId()).drive().get();
 
         Drive drive = graphClient.drives()
                 .byDriveId("fd53db0b84044140")
@@ -78,17 +97,15 @@ public class OnedriveDeduper {
         List<DriveItem> driveItems = graphClient.drives()
                 .byDriveId(drive.getId())
                 .items()
-                .byDriveItemId(startPath)
+                .byDriveItemId(folderName)
                 .children()
                 .get()
                 .getValue();
 
-        // Get the drive used to find drive id to get files.
-//        Drive drive = graphClient.sites().bySiteId(config.getSiteId()).drive().get();
-
+        assert driveItems != null;
         removeFolders(driveItems);
 
-        return driveItems;
+        return mapToGenericFile(driveItems);
     }
 
     /*
@@ -101,64 +118,24 @@ public class OnedriveDeduper {
             DriveItem next = it.next();
             if (next.getFolder() != null) {
                 it.remove();
-                Thread.sleep(200);
+                Thread.sleep(600);
             }
         }
     }
 
-    // Sort the files found by findFiles() by the sha256Hash or the file size is the hash is not found.
-    private static void sortFilesByHash(List<DriveItem> driveItems) {
-        duplicateFiles = new HashMap<>();
-        driveItems.stream().forEach(d -> {
-            String sha256Hash = d.getFile().getHashes().getSha256Hash();
-            if (duplicateFiles.containsKey(sha256Hash)) {
-                duplicateFiles.get(sha256Hash).add(d);
-            }
-            else if (findFileSize(duplicateFiles, d.getSize()) != null) {
-                String key = findFileSize(duplicateFiles, d.getSize());
-                duplicateFiles.get(key).add(d);
-            }
-            else {
-                List<DriveItem> list = new LinkedList<>();
-                list.add(d);
-                duplicateFiles.put(sha256Hash, list);
-            }
-        });
+    /*
+     * Create folder to move duplicate files to.
+     */
+    private void createNewFolder() {
+        String folderName = "Duplicate Files - " + GenericFileDeduplicator.getCurrentDate();
+        // Create new folder with folderName
     }
 
-    // Searches the map of duplicate files for a file of a specified size in bytes.
-    // Once a file of the same size is found, the sha256Hash/map key is returned or null if not found.
-    private static String findFileSize(Map<String, List<DriveItem>> map, Long size) {
-        try {
-            assert map != null;
-            Set<String> keySet = map.keySet();
-            for (String key : keySet) {
-                List<DriveItem> mapValue = map.get(key);
-                for (DriveItem d : mapValue) {
-                    if (d.getSize() == size) {
-                        return d.getFile().getHashes().getSha256Hash();
-                    }
-                }
-            }
-        }
-        catch (AssertionError e) {
-            System.out.println("Map is empty: file size cannot be found.");
-            return null;
-        }
-        return null;
-    }
-
-    // Print the name of all files returned by findFiles() to test output.
-    public static void printDetails() throws InterruptedException {
-        List<DriveItem> list = getFiles("");
-
-        for (DriveItem d : list) {
-            System.out.println(d.getName());
-        }
-    }
-
-    // Delete files
-    static void deleteFiles(Map<String, List<GenericFileMetadata>> files) {
+    /*
+     * Delete files
+     */
+    @Override
+    public void deleteFiles(Map<String, List<GenericFileMetadata>> files) {
         for (String key : duplicateFiles.keySet()) {
             for (DriveItem item : duplicateFiles.get(key)) {
                 graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId(item.getId()).delete();
@@ -166,18 +143,19 @@ public class OnedriveDeduper {
         }
     }
 
-    private static Map<String, List<DriveItem>> mapToGenericFile(Map<String, List<GenericFileMetadata>> files) {
-        Map<String, List<DriveItem>> driveItems = new HashMap<>();
-        for (String key : files.keySet()) {
-            List<DriveItem> items = new LinkedList<>();
-            for (GenericFileMetadata file : files.get(key)) {
-
-            }
-        }
-        return driveItems;
+    /*
+     * Move files to a new folder.
+     */
+    @Override
+    public void moveFilesToFolder(Map<String, List<GenericFileMetadata>> files) {
+        createNewFolder();
     }
 
+    /*
+     * Upload the file with list of duplicates.
+     */
+    @Override
+    public void uploadLogFile(File file) {
 
-    // Move files
-
+    }
 }

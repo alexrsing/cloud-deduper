@@ -10,6 +10,7 @@ package email.sing.tools.dropbox.deduper;
 
 import com.microsoft.graph.models.Drive;
 import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.models.ItemReference;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
@@ -22,7 +23,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     public static GraphServiceClient graphClient;
     public static User onedriveUser;
     public static String startPath;
-    private static Map<String, List<DriveItem>> duplicateFiles;
 
     @Override
     public void init() {
@@ -84,7 +84,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     }
 
     // Find files non-recursively.
-    public static List<GenericFileMetadata> getFiles(String folderName) throws InterruptedException {
+    public List<GenericFileMetadata> getFiles(String folderName) throws InterruptedException {
 //        String startPath = "root:/" + folderName;
 
         // Get the drive used to find drive id to get files.
@@ -111,7 +111,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     /*
      * Remove any folders that are found by findFiles(). To be called before returning the finalized list.
      */
-    private static void removeFolders(List<DriveItem> driveItems) throws InterruptedException {
+    private void removeFolders(List<DriveItem> driveItems) throws InterruptedException {
         Iterator<DriveItem> it = driveItems.iterator();
 
         while (it.hasNext()) {
@@ -126,9 +126,12 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     /*
      * Create folder to move duplicate files to.
      */
-    private void createNewFolder() {
+    private String createNewFolder() {
         String folderName = "Duplicate Files - " + GenericFileDeduplicator.getCurrentDate();
         // Create new folder with folderName
+
+
+        return folderName;
     }
 
     /*
@@ -136,9 +139,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     @Override
     public void deleteFiles(Map<String, List<GenericFileMetadata>> files) {
-        for (String key : duplicateFiles.keySet()) {
-            for (DriveItem item : duplicateFiles.get(key)) {
-                graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId(item.getId()).delete();
+        for (String key : files.keySet()) {
+            for (GenericFileMetadata item : files.get(key)) {
+                graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId(item.getFileRoot()).delete();
             }
         }
     }
@@ -148,7 +151,19 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     @Override
     public void moveFilesToFolder(Map<String, List<GenericFileMetadata>> files) {
-        createNewFolder();
+        String name = createNewFolder();
+        String newFolderId = graphClient.drives().byDriveId("fd53db0b84044140").items().byDriveItemId("root:/").get().getId();
+
+        for (String key : files.keySet()) {
+            for (GenericFileMetadata f : files.get(key)) {
+                DriveItem driveItem = new DriveItem();
+                ItemReference parentReference = new ItemReference();
+                parentReference.setId(name);
+                driveItem.setParentReference(parentReference);
+                driveItem.setName(f.getFileName());
+                DriveItem result = graphClient.drives().byDriveId(name).items().byDriveItemId(newFolderId).patch(driveItem);
+            }
+        }
     }
 
     /*
@@ -156,6 +171,5 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     @Override
     public void uploadLogFile(File file) {
-
     }
 }

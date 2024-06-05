@@ -54,7 +54,7 @@ public class GenericFileDeduplicator {
 
         dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
         dedupeFileAccessor.init();
-        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("Sample:", false);
+        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("", false);
         populateMap(files);
 
     }
@@ -86,7 +86,7 @@ public class GenericFileDeduplicator {
         dedupeFileAccessor.init();
 
         // While the startPath is null or does not exist, keep asking.
-        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"folder/subfolder\". Leave blank for the home directory)./n If you are using Onedrive, please enter the name of the parent folder:");
+        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\". Leave blank for the home directory)./n If you are using Onedrive, please enter the name of the parent folder:");
 
         String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
         int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);

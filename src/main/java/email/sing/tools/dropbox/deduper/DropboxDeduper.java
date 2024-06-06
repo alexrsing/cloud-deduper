@@ -41,10 +41,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	private static final String appKey = "69rotl1nmd80etf";
 	private static final String appSecret = "nn93eef34q21gtf";
 	private static DbxClientV2 dropboxClient; // Client used to send requests to Dropbox
-    //private static Map<String, List<FileMetadata>> fileMap; // Map of lists of FileMetadata keyed on content hashes.
-	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
-	private static List<FolderMetadata> folders; // Keep the folders that are de-duplicated through to make folder structure
-
+//	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
 	public void init() {
 		dropboxClient = getDropboxClient();
 	}
@@ -159,13 +156,15 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	/*
 	 * Create a new folder to move duplicate files to.
 	 */
-	private static void createNewFolder(String newFolderName) {
+	public String createNewFolder() {
+		String folderName = getFolderName();
 		try {
-			dropboxClient.files().createFolderV2(newFolderName);
+			dropboxClient.files().createFolderV2(folderName);
 		}
 		catch (Exception e) {
 			System.err.println("Error creating folder: " + e);
 		}
+		return folderName;
 	}
 
 	/*
@@ -176,24 +175,12 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	}
 
 	/*
-	 * Copy the folder structure from
-	 */
-	private static void createFolderHierarchy(String baseFolderName) throws Exception {
-		createNewFolder(baseFolderName);
-
-		for (FolderMetadata folder : folders) {
-			createNewFolder(baseFolderName + folder.getPathDisplay());
-			Thread.sleep(600);
-		}
-	}
-
-	/*
 	 * Move files to the new folder that is created.
 	 */
 	@Override
 	public void moveFilesToFolder(Map<String, List<GenericFileMetadata>> map) throws Exception {
 		String newFolderName = getFolderName();
-		createNewFolder(getFolderName());
+		createNewFolder();
 
 		for (String key : map.keySet()) {
 			for (GenericFileMetadata file : map.get(key)) {

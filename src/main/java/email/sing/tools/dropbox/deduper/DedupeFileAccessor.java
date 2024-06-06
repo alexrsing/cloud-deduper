@@ -15,4 +15,6 @@ public interface DedupeFileAccessor {
     void deleteFiles(Map<String, List<GenericFileMetadata>> map);
 
     void uploadLogFile(File file);
+
+    String createNewFolder();
 }

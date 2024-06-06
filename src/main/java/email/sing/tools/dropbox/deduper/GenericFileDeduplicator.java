@@ -54,8 +54,9 @@ public class GenericFileDeduplicator {
 
         dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
         dedupeFileAccessor.init();
-        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("", false);
-        populateMap(files);
+//        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("", false);
+//        populateMap(files);
+        dedupeFileAccessor.createNewFolder();
 
     }
 
@@ -284,7 +285,7 @@ public class GenericFileDeduplicator {
      */
     public static String getCurrentDate() {
         Date myDate = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd:HH-mm-ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd--HH-mm-ss");
 
         return sdf.format(myDate);
     }

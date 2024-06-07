@@ -49,7 +49,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     // Map a list of DriveItem objects to a list of GenericFileMetadata objects.
     private static List<GenericFileMetadata> mapToGenericFile(List<DriveItem> files) {
         return files.stream().
-                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha256Hash(), f.getSize().intValue())).
+                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha256Hash(), f.getSize().intValue(), f.getId())).
                 toList();
     }
 
@@ -152,12 +152,15 @@ public class OnedriveDeduper implements DedupeFileAccessor {
 
         for (String key : files.keySet()) {
             for (GenericFileMetadata f : files.get(key)) {
-                DriveItem driveItem = new DriveItem();
+                DriveItem driveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getFileId()).get();
                 ItemReference parentReference = new ItemReference();
                 parentReference.setId(newFolderId);
                 driveItem.setParentReference(parentReference);
-                driveItem.setName(f.getFileName());
-                DriveItem result = graphClient.drives().byDriveId(driveId).items().byDriveItemId(newFolderId).patch(driveItem);
+                graphClient.drives()
+                        .byDriveId(driveId)
+                        .items()
+                        .byDriveItemId(driveItem.getId())
+                        .patch(driveItem);
             }
         }
     }
@@ -167,6 +170,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     @Override
     public void uploadLogFile(File file) {
-        graphClient.drives().byDriveId(driveId).items().byDriveItemId("/root:/" + file.getName()).createUploadSession();
+        graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName()).createUploadSession();
     }
 }

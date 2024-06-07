@@ -19,6 +19,8 @@ public class GenericFileMetadata {
     private String contentHash;
     private int fileSize;
 
+    private String fileId;
+
     // Map of all duplicate files without the original.
 //    public static Map<String, List<GenericFileMetadata>> files;
 
@@ -32,6 +34,14 @@ public class GenericFileMetadata {
         this.fileRoot = fileRoot;
         this.contentHash = contentHash;
         this.fileSize = fileSize;
+    }
+
+    public GenericFileMetadata(String fileName, String fileRoot, String contentHash, int fileSize, String fileId) {
+        this.fileName = fileName;
+        this.fileRoot = fileRoot;
+        this.contentHash = contentHash;
+        this.fileSize = fileSize;
+        this.fileId = fileId;
     }
 
     // Return the file name for the GenericFileMetadata object.
@@ -53,6 +63,8 @@ public class GenericFileMetadata {
     public int getFileSize() {
         return this.fileSize;
     }
+
+    public String getFileId() { return this.fileId; }
 
     // Set the file name for the GenericFileMetadata object.
     public void setFileName(String fileName) {

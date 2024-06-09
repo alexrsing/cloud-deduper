@@ -36,14 +36,6 @@ public class GenericFileMetadata {
         this.fileSize = fileSize;
     }
 
-    public GenericFileMetadata(String fileName, String fileRoot, String contentHash, int fileSize, String fileId) {
-        this.fileName = fileName;
-        this.fileRoot = fileRoot;
-        this.contentHash = contentHash;
-        this.fileSize = fileSize;
-        this.fileId = fileId;
-    }
-
     // Return the file name for the GenericFileMetadata object.
     public String getFileName() {
         return this.fileName;

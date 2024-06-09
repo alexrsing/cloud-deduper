@@ -54,10 +54,10 @@ public class GenericFileDeduplicator {
 
         dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
         dedupeFileAccessor.init();
-//        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("", false);
-//        populateMap(files);
-        dedupeFileAccessor.createNewFolder();
-
+        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("root:/Sample:", true);
+        duplicateFiles = dedupeFileAccessor.populateMap(files);
+        printMap();
+        dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
     }
 
     private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {
@@ -72,6 +72,15 @@ public class GenericFileDeduplicator {
             throw new RuntimeException("Cloud service not specified.");
         }
         return dedupeFileAccessor;
+    }
+
+    private void printMap() {
+        System.out.println("Print Map");
+        for (String key : duplicateFiles.keySet()) {
+            for (GenericFileMetadata f : duplicateFiles.get(key)) {
+                System.out.println(f.getFileName());
+            }
+        }
     }
 
 
@@ -110,7 +119,6 @@ public class GenericFileDeduplicator {
 
     /*
      * Get a list of all files in a specified path from either Dropbox or OneDrive and add them the "files" map
-     */
     private void populateMap(List<GenericFileMetadata> files) {
         duplicateFiles = new HashMap<>();
         originalFiles = new HashMap<>();
@@ -131,6 +139,7 @@ public class GenericFileDeduplicator {
 
         keepOriginalFile();
     }
+     */
 
     /*
      * Find the file size in the map.
@@ -152,16 +161,18 @@ public class GenericFileDeduplicator {
      * Remove first file from each list in the files values.
      */
     private void keepOriginalFile() {
-        Set<String> genericFileKeys = duplicateFiles.keySet();
+        Set<String> genericFileKeys = new HashSet<>(duplicateFiles.keySet());
 
-        // Get rid of the first file in the files map - it is going to be the original (not duplicate)
-        for (String contentHash : genericFileKeys) {
-            if (duplicateFiles.get(contentHash).size() == 1) {
-                originalFiles.put(contentHash, duplicateFiles.get(contentHash).get(0));
-                duplicateFiles.remove(contentHash);
+        // Remove the first file in each of the linked list with duplicates
+        // to keep an original file
+        // Remove any non-duplicates
+        for (String key : genericFileKeys) {
+            if (duplicateFiles.get(key).size() <= 1) {
+                duplicateFiles.remove(key);
             }
             else {
-                duplicateFiles.get(contentHash).remove(0);
+                originalFiles.put(key, duplicateFiles.get(key).get(0));
+                duplicateFiles.get(key).remove(0);
             }
         }
     }

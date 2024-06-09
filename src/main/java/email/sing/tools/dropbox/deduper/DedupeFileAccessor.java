@@ -17,4 +17,6 @@ public interface DedupeFileAccessor {
     void uploadLogFile(File file);
 
     String createNewFolder();
+
+    Map<String, List<GenericFileMetadata>> populateMap(List<GenericFileMetadata> files);
 }

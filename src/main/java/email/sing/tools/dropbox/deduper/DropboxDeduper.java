@@ -90,8 +90,8 @@ public class DropboxDeduper implements DedupeFileAccessor {
 		style.append("font-size:").append(font.getSize()).append("pt;");
 
 		// Dialog content with html
-		JEditorPane ep = new JEditorPane("text/html", "<html><body style=\"" + style + "\">" //
-				+ "1. Go to <a href=\"" + url + "\">" + url + "</a><br />" //
+		JEditorPane ep = new JEditorPane("text/html", "<html><body style=\"" + style + "\">"
+				+ "1. Go to <a href=\"" + url + "\">" + url + "</a><br />"
 				+ "2. Click \"Allow\"<br />3. Copy the authorization code <br />4. Enter the authorization code here</body></html>");
 
 		// Handle link events
@@ -135,6 +135,26 @@ public class DropboxDeduper implements DedupeFileAccessor {
 
 		return mapToGenericFiles(entries);
 	}
+
+	// Create a map of the duplicate files.
+	public Map<String, List<GenericFileMetadata>> populateMap(List<GenericFileMetadata> files) {
+		Map<String, List<GenericFileMetadata>> fileMap = new HashMap<>();
+
+		for (GenericFileMetadata f : files) {
+			String fileHash = f.getContentHash();
+			if (fileMap.containsKey(fileHash)) {
+				fileMap.get(fileHash).add(f);
+			}
+			else {
+				List<GenericFileMetadata> list = new LinkedList<>();
+				list.add(f);
+				fileMap.put(fileHash, list);
+			}
+		}
+
+		return fileMap;
+	}
+
 
 	public static List<GenericFileMetadata> mapToGenericFiles(List<Metadata> files) {
 		List<GenericFileMetadata> genericFiles = new ArrayList<>();

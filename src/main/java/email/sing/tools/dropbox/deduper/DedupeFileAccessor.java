@@ -1,6 +1,9 @@
 package email.sing.tools.dropbox.deduper;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +17,7 @@ public interface DedupeFileAccessor {
 
     void deleteFiles(Map<String, List<GenericFileMetadata>> map);
 
-    void uploadLogFile(File file);
+    void uploadLogFile(File file) throws IOException, InvocationTargetException, IllegalAccessException, NoSuchMethodException;
 
     String createNewFolder();
 

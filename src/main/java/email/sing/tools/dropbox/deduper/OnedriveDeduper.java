@@ -8,6 +8,11 @@
 
 package email.sing.tools.dropbox.deduper;
 
+import com.dropbox.core.v2.teamlog.UserTagsRemovedType;
+import com.microsoft.graph.core.models.IProgressCallback;
+import com.microsoft.graph.core.models.UploadResult;
+import com.microsoft.graph.core.tasks.LargeFileUploadTask;
+import com.microsoft.graph.drives.item.items.item.createuploadsession.CreateUploadSessionPostRequestBody;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
@@ -15,20 +20,21 @@ import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import java.awt.*;
+import java.io.*;
 import java.io.File;
-import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 public class OnedriveDeduper implements DedupeFileAccessor {
 
     public static GraphServiceClient graphClient;
     public static User onedriveUser;
     private String driveId;
-    // fd53db0b84044140
 
-    private List<DriveItem> driveItemFiles;
+    private List<DriveItem> driveItems;
 
     @Override
     public void init() {
@@ -102,6 +108,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      * Find files recursively
      */
     public List<GenericFileMetadata> getFiles(String startPath, boolean recursive) throws InterruptedException {
+        driveItems = new LinkedList<>();
         if (!recursive) {
             // Call non-recursive method if recursive == false.
             return getFiles(startPath);
@@ -119,10 +126,10 @@ public class OnedriveDeduper implements DedupeFileAccessor {
             }
 
 
-//            List<DriveItem> driveItems = findDriveItemFilesRecursively(startPath);
+            List<DriveItem> driveItems = findDriveItemFilesRecursively(startPath);
              */
-            driveItemFiles = new LinkedList<>();
-            List<DriveItem> driveItems = getOneDriveFiles(startPath);
+
+            driveItems.addAll(getOneDriveFiles(startPath));
 
 
             removeFolders(driveItems);
@@ -133,7 +140,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     /*
      * Find the files of the Onedrive folder starting at a certain path.
      */
-    private List<DriveItem> getOneDriveFiles(String startPath) throws InterruptedException {
+    private List<DriveItem> getOneDriveFiles(String startPath) {
         List<DriveItem> driveItems = findDriveItemFiles(startPath);
         ListIterator<DriveItem> it = driveItems.listIterator();
 
@@ -242,21 +249,8 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         String newFolderPath = "root:/Duplicate Files";
         DriveItem newFolderDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(newFolderPath).get();
 
-        /*
-        String testDriveItemId = "root:/Sample/Folder 1/a.txt";
-        DriveItem testDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(testDriveItemId).get();
 
 
-        DriveItem driveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(testDriveItemId).get();
-        ItemReference parentReference = new ItemReference();
-        parentReference.setId(newFolderDriveItem.getId());
-        driveItem.setParentReference(parentReference);
-        graphClient.drives()
-                .byDriveId(driveId)
-                .items()
-                .byDriveItemId(testDriveItem.getId())
-                .patch(driveItem);
-         */
 
         for (String key : files.keySet()) {
             for (GenericFileMetadata f : files.get(key)) {
@@ -274,11 +268,58 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         }
     }
 
+    //        InputStream fileInputStream = new FileInputStream(file);
+//        UploadSession uploadSession = graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName()).createUploadSession().post();
+
     /*
      * Upload the file with list of duplicates.
      */
     @Override
-    public void uploadLogFile(File file) {
-        graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName()).createUploadSession();
+    public void uploadLogFile(File file) throws IOException, InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+        InputStream fileStream = new FileInputStream(file);
+        long streamSize = file.length();
+
+        // Set body of the upload session request
+        CreateUploadSessionPostRequestBody uploadSessionRequest = new CreateUploadSessionPostRequestBody();
+        DriveItemUploadableProperties properties = new DriveItemUploadableProperties();
+        properties.getAdditionalData().put("@microsoft.graph.conflictBehavior", "replace");
+        uploadSessionRequest.setItem(properties);
+
+        // Create an upload session
+        UploadSession uploadSession = graphClient.drives()
+                .byDriveId(driveId)
+                .items()
+                .byDriveItemId("root:/")
+                .createUploadSession()
+                .post(uploadSessionRequest);
+
+        // Create the upload task
+        int maxSliceSize = 320 * 10;
+        LargeFileUploadTask<DriveItem> largeFileUploadTask = new LargeFileUploadTask<>(
+                graphClient.getRequestAdapter(),
+                uploadSession,
+                fileStream,
+                streamSize,
+                maxSliceSize,
+                DriveItem::createFromDiscriminatorValue);
+
+        int maxAttempts = 5;
+
+        // Create a callback used by the upload provider
+        IProgressCallback callback = (current, max) -> System.out.println(
+                String.format("Uploaded %d bytes of %d total bytes", current, max));
+
+        // Upload file
+        try {
+            UploadResult<DriveItem> uploadResult = largeFileUploadTask.upload(maxAttempts, callback);
+            if (uploadResult.isUploadSuccessful()) {
+                System.out.println("Upload complete");
+                System.out.println("Item ID: " + uploadResult.itemResponse.getId());
+            } else {
+                System.out.println("Upload failed");
+            }
+        } catch (CancellationException | IOException | InterruptedException ex) {
+            System.out.println("Error uploading: " + ex.getMessage());
+        }
     }
 }

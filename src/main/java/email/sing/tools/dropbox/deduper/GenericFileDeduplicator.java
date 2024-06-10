@@ -30,34 +30,50 @@ public class GenericFileDeduplicator {
 
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
-        /*
         int option = getUserPreferences();
-        dedupeFileAccessor = createDedupeFileAccessor(cloudService);
-        dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
-        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
-        populateMap(files);
 
-        /*
-        if (option == 1 && confirmDelete() && listDeletedFiles()) {
-            dedupeFileAccessor.deleteFiles(duplicateFiles);
+        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
+        duplicateFiles = dedupeFileAccessor.populateMap(files);
+        keepOriginalFile();
+
+        if (option == 0 && confirmDelete() && listDeletedFiles()) {
+            try {
+                dedupeFileAccessor.deleteFiles(duplicateFiles);
+            }
+            catch (Exception e) {
+                displayErrorMessage("Error deleting files.");
+            }
         }
-        else if (option == 2) {
-            dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+        else if (option == 1) {
+            try {
+                dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+            }
+            catch (Exception e) {
+                displayErrorMessage("Error moving files.");
+            }
         }
-        else if (option == 3) {
-            File logFile = logDuplicateFiles();
+
+        // Upload log file.
+        File logFile = logDuplicateFiles();
+        try {
             dedupeFileAccessor.uploadLogFile(logFile);
+        }
+        catch (Exception e) {
+            displayErrorMessage("Error uploading log file.");
         }
 
         displayFinalDialog();
-         */
 
+        /*
         dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
         dedupeFileAccessor.init();
         List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("root:/Sample:", true);
         duplicateFiles = dedupeFileAccessor.populateMap(files);
+        keepOriginalFile();
         printMap();
-        dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+        File logFile = logDuplicateFiles();
+        dedupeFileAccessor.uploadLogFile(logFile);
+         */
     }
 
     private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {
@@ -74,11 +90,12 @@ public class GenericFileDeduplicator {
         return dedupeFileAccessor;
     }
 
+    // Print the files that populate the map.
     private void printMap() {
         System.out.println("Print Map");
         for (String key : duplicateFiles.keySet()) {
             for (GenericFileMetadata f : duplicateFiles.get(key)) {
-                System.out.println(f.getFileName());
+                System.out.println("Key: " + key + ", File: " + f.getFileName());
             }
         }
     }
@@ -93,10 +110,11 @@ public class GenericFileDeduplicator {
         int cs = JOptionPane.showOptionDialog(null, "What cloud service would you like to use?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
         cloudService = serviceOptions[cs];
 
+        dedupeFileAccessor = createDedupeFileAccessor(cloudService);
         dedupeFileAccessor.init();
 
         // While the startPath is null or does not exist, keep asking.
-        startPath = "/" + JOptionPane.showInputDialog("Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\". Leave blank for the home directory)./n If you are using Onedrive, please enter the name of the parent folder:");
+        startPath = "/" + JOptionPane.showInputDialog(null, "Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\").\n If you are using Onedrive, enter in the form \"root:/Folder1/Folder2:\" (Leave blank for the home directory):", title, JOptionPane.QUESTION_MESSAGE);
 
         String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
         int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
@@ -161,6 +179,7 @@ public class GenericFileDeduplicator {
      * Remove first file from each list in the files values.
      */
     private void keepOriginalFile() {
+        originalFiles = new HashMap<>();
         Set<String> genericFileKeys = new HashSet<>(duplicateFiles.keySet());
 
         // Remove the first file in each of the linked list with duplicates
@@ -194,7 +213,7 @@ public class GenericFileDeduplicator {
      */
     private void displayFinalDialog() {
         int totalFiles = getFileMapSize();
-        JOptionPane.showMessageDialog(null, "Of" + duplicateFiles.size() + ", " + totalFiles + " duplicates have been found");
+        JOptionPane.showMessageDialog(null, "Of " + duplicateFiles.size() + ", " + totalFiles + " duplicates have been found");
     }
 
     /*
@@ -262,7 +281,7 @@ public class GenericFileDeduplicator {
             CSVWriter writer = new CSVWriter(outputFile);
 
             // Add header to csv
-            String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION", "DUPLICATE FILE SIZE", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION", "ORIGINAL FILE SIZE"};
+            String[] header = {"-DUPLICATE FILE NAME-", "-DUPLICATE FILE LOCATION-", "-DUPLICATE FILE SIZE-", "-ORIGINAL FILE NAME-", "-ORIGINAL FILE LOCATION-", "-ORIGINAL FILE SIZE-"};
             writer.writeNext(header);
 
             String[] data = new String[6];

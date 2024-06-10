@@ -8,7 +8,6 @@
 
 package email.sing.tools.dropbox.deduper;
 
-import com.dropbox.core.v2.teamlog.UserTagsRemovedType;
 import com.microsoft.graph.core.models.IProgressCallback;
 import com.microsoft.graph.core.models.UploadResult;
 import com.microsoft.graph.core.tasks.LargeFileUploadTask;
@@ -51,7 +50,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         getDriveId();
     }
 
-    // Display the message from the authentication challenge.
+    /*
+     * Display the message from the authentication challenge.
+     */
     private void displayInitMessage(String code) {
         JLabel label = new JLabel();
         Font font = label.getFont();
@@ -90,7 +91,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         JOptionPane.showConfirmDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
     }
 
-    // Get the driveId of the user's Onedrive.
+    /*
+     * Get the driveId of the user's Onedrive.
+     */
     private void getDriveId() {
         driveId = graphClient.me().drive().get().getId();
     }
@@ -100,7 +103,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     private static List<GenericFileMetadata> mapToGenericFile(List<DriveItem> files) {
         return files.stream().
-                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha1Hash(), f.getSize().intValue())).
+                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha256Hash(), f.getSize().intValue())).
                 toList();
     }
 
@@ -168,6 +171,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         return mapToGenericFile(driveItems);
     }
 
+    /*
+     * Runs command to return a list of files and folders in specified path.
+     */
     private List<DriveItem> findDriveItemFiles(String startPath) {
         return graphClient.drives()
                 .byDriveId(driveId)
@@ -249,9 +255,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         String newFolderPath = "root:/Duplicate Files";
         DriveItem newFolderDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(newFolderPath).get();
 
-
-
-
         for (String key : files.keySet()) {
             for (GenericFileMetadata f : files.get(key)) {
                 DriveItem currentDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getFileId()).get();
@@ -279,6 +282,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         InputStream fileStream = new FileInputStream(file);
         long streamSize = file.length();
 
+        graphClient.drives().byDriveId(driveId).items().byDriveItemId("").content().put(fileStream);
+
+        /*
         // Set body of the upload session request
         CreateUploadSessionPostRequestBody uploadSessionRequest = new CreateUploadSessionPostRequestBody();
         DriveItemUploadableProperties properties = new DriveItemUploadableProperties();
@@ -289,7 +295,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         UploadSession uploadSession = graphClient.drives()
                 .byDriveId(driveId)
                 .items()
-                .byDriveItemId("root:/")
+                .byDriveItemId("")
                 .createUploadSession()
                 .post(uploadSessionRequest);
 
@@ -321,5 +327,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         } catch (CancellationException | IOException | InterruptedException ex) {
             System.out.println("Error uploading: " + ex.getMessage());
         }
+         */
     }
 }

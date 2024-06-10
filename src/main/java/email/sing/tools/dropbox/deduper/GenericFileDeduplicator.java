@@ -114,7 +114,7 @@ public class GenericFileDeduplicator {
         dedupeFileAccessor.init();
 
         // While the startPath is null or does not exist, keep asking.
-        startPath = "/" + JOptionPane.showInputDialog(null, "Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\").\n If you are using Onedrive, enter in the form \"root:/Folder1/Folder2:\" (Leave blank for the home directory):", title, JOptionPane.QUESTION_MESSAGE);
+        startPath = JOptionPane.showInputDialog(null, "Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\").\n If you are using Onedrive, enter in the form \"root:/Folder1/Folder2:\" (Leave blank for the home directory):", title, JOptionPane.QUESTION_MESSAGE);
 
         String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
         int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
@@ -134,30 +134,6 @@ public class GenericFileDeduplicator {
 
         return selection;
     }
-
-    /*
-     * Get a list of all files in a specified path from either Dropbox or OneDrive and add them the "files" map
-    private void populateMap(List<GenericFileMetadata> files) {
-        duplicateFiles = new HashMap<>();
-        originalFiles = new HashMap<>();
-        for (GenericFileMetadata f : files) {
-            String contentHash = f.getContentHash();
-            if (duplicateFiles.containsKey(contentHash)) {
-                duplicateFiles.get(contentHash).add(f);
-            }
-            else if (findFileSize(f.getFileSize()) != null) {
-                duplicateFiles.get(findFileSize(f.getFileSize())).add(f);
-            }
-            else {
-                List<GenericFileMetadata> list = new LinkedList<>();
-                list.add(f);
-                duplicateFiles.put(f.getContentHash(), list);
-            }
-        }
-
-        keepOriginalFile();
-    }
-     */
 
     /*
      * Find the file size in the map.
@@ -213,7 +189,7 @@ public class GenericFileDeduplicator {
      */
     private void displayFinalDialog() {
         int totalFiles = getFileMapSize();
-        JOptionPane.showMessageDialog(null, "Of " + duplicateFiles.size() + ", " + totalFiles + " duplicates have been found");
+        JOptionPane.showMessageDialog(null, "Of " + totalFiles + ", " + duplicateFiles.size() + " duplicates have been found");
     }
 
     /*

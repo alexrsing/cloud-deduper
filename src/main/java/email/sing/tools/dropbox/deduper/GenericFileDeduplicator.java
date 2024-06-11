@@ -30,6 +30,7 @@ public class GenericFileDeduplicator {
 
     // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
+        /*
         int option = getUserPreferences();
 
         List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
@@ -64,16 +65,15 @@ public class GenericFileDeduplicator {
 
         displayFinalDialog();
 
-        /*
+         */
+
+
         dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
         dedupeFileAccessor.init();
         List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("root:/Sample:", true);
         duplicateFiles = dedupeFileAccessor.populateMap(files);
-        keepOriginalFile();
-        printMap();
-        File logFile = logDuplicateFiles();
-        dedupeFileAccessor.uploadLogFile(logFile);
-         */
+        dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+
     }
 
     private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {

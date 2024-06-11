@@ -56,8 +56,6 @@ public class GenericFileMetadata {
         return this.fileSize;
     }
 
-    public String getFileId() { return this.fileId; }
-
     // Set the file name for the GenericFileMetadata object.
     public void setFileName(String fileName) {
         this.fileName = fileName;

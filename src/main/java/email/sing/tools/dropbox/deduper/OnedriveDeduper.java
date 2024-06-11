@@ -33,13 +33,13 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     public static User onedriveUser;
     private String driveId;
 
-    private List<DriveItem> driveItems;
+    //private List<DriveItem> driveItems;
 
     @Override
     public void init() {
         try {
-//            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getMessage()));
-            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getUserCode()));
+            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
+//            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getUserCode()));
 
         } catch (Exception e)
         {
@@ -111,7 +111,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      * Find files recursively
      */
     public List<GenericFileMetadata> getFiles(String startPath, boolean recursive) throws InterruptedException {
-        driveItems = new LinkedList<>();
+        List<DriveItem> driveItems = new LinkedList<>();
         if (!recursive) {
             // Call non-recursive method if recursive == false.
             return getFiles(startPath);
@@ -152,8 +152,18 @@ public class OnedriveDeduper implements DedupeFileAccessor {
             System.out.println("Current item: " + current.getName());
             if (current.getFolder() != null) {
                 List<DriveItem> childrenItems = findDriveItemFiles(current.getId());
-                childrenItems.stream().forEach(f->it.add(f));
+
+                childrenItems.stream().forEach(f -> System.out.println(f.getName()));
+
+                childrenItems.stream().forEach(f -> {
+                    it.add(f);
+                    it.previous();
+                });
+                it.next();
                 System.out.println("Added:" + current.getName());
+
+
+                it.previous();
             }
         }
         return driveItems;
@@ -257,7 +267,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
 
         for (String key : files.keySet()) {
             for (GenericFileMetadata f : files.get(key)) {
-                DriveItem currentDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getFileId()).get();
+                DriveItem currentDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getFileRoot()).get();
                 DriveItem driveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(currentDriveItem.getId()).get();
                 ItemReference parentReference = new ItemReference();
                 parentReference.setId(newFolderDriveItem.getId());

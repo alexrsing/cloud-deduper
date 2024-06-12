@@ -17,7 +17,7 @@ public class GenericFileMetadata {
     private String fileName;
     private String fileRoot;
     private String contentHash;
-    private int fileSize;
+    private long fileSize;
 
     private String fileId;
 
@@ -29,7 +29,7 @@ public class GenericFileMetadata {
 
 
     // GenericFileMetadata object constructor.
-    public GenericFileMetadata(String fileName, String fileRoot, String contentHash, int fileSize) {
+    public GenericFileMetadata(String fileName, String fileRoot, String contentHash, long fileSize) {
         this.fileName = fileName;
         this.fileRoot = fileRoot;
         this.contentHash = contentHash;
@@ -52,7 +52,7 @@ public class GenericFileMetadata {
     }
 
     // Return the file name for the GenericFileMetadata object.
-    public int getFileSize() {
+    public long getFileSize() {
         return this.fileSize;
     }
 

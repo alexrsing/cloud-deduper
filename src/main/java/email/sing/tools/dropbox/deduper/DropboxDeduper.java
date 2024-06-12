@@ -139,6 +139,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	// Create a map of the duplicate files.
 	public Map<String, List<GenericFileMetadata>> populateMap(List<GenericFileMetadata> files) {
 		Map<String, List<GenericFileMetadata>> fileMap = new HashMap<>();
+		GenericFileDeduplicator.totalFileCount = files.size();
 
 		for (GenericFileMetadata f : files) {
 			String fileHash = f.getContentHash();
@@ -159,7 +160,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	public static List<GenericFileMetadata> mapToGenericFiles(List<Metadata> files) {
 		List<GenericFileMetadata> genericFiles = new ArrayList<>();
 		return files.stream()
-				.map(file -> new GenericFileMetadata(file.getName(), file.getPathLower(), "", 1))
+				.map(file -> new GenericFileMetadata(file.getName(), file.getPathLower(), ((FileMetadata) file).getContentHash(), ((FileMetadata) file).getSize()))
 				.toList();
 	}
 

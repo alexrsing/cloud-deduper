@@ -8,6 +8,9 @@
 
 package email.sing.tools.dropbox.deduper;
 
+import com.azure.identity.DeviceCodeCredential;
+import com.azure.identity.DeviceCodeCredentialBuilder;
+import com.azure.identity.DeviceCodeInfo;
 import com.microsoft.graph.core.models.IProgressCallback;
 import com.microsoft.graph.core.models.UploadResult;
 import com.microsoft.graph.core.tasks.LargeFileUploadTask;
@@ -26,25 +29,58 @@ import java.net.URISyntaxException;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.function.Consumer;
 
 public class OnedriveDeduper implements DedupeFileAccessor {
 
-    public static GraphServiceClient graphClient;
-    public static User onedriveUser;
+    public GraphServiceClient graphClient;
+    public User onedriveUser;
     private String driveId;
 
-    //private List<DriveItem> driveItems;
+    private DeviceCodeCredential deviceCodeCredential;
+
+    private static final String clientId = "c11013f8-0882-4ef6-a7bf-8a06e3d01dcf";
+    private static final String[] graphUserScopes = { "user.read", "profile", "openid", "files.readwrite.all", "application.readwrite.all" };
+    private static final String tenantId = "common";
+
+    public void initializeGraphForUserAuth(Consumer<DeviceCodeInfo> challenge) {
+        try {
+            deviceCodeCredential = new DeviceCodeCredentialBuilder()
+                    .clientId(clientId)
+                    .tenantId(tenantId)
+                    .challengeConsumer(challenge)
+                    .build();
+
+            graphClient = new GraphServiceClient(deviceCodeCredential, graphUserScopes);
+            onedriveUser = graphClient.me().get();
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Override
     public void init() {
         try {
+            System.out.println("Initializing MSGraph client.");
 //            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
-            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getUserCode()));
+            initializeGraphForUserAuth(challenge -> {
+                String userCode = null;
+                try {
+                    userCode = challenge.getUserCode();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("Usercode: " + userCode);
+                displayInitMessage(userCode);
+            });
 
         } catch (Exception e)
         {
+            JOptionPane.showMessageDialog(null, "Error initializing MSGraph client.");
             System.out.println("Error initializing Graph for user auth");
             System.out.println(e.getMessage());
+            System.exit(1);
         }
 
         getDriveId();
@@ -87,10 +123,14 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         ep.setEditable(false);
         ep.setBackground(label.getBackground());
 
-        // Show dialog box
-        int option = JOptionPane.showConfirmDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
-        if (option != 0) {
-            System.exit(0);
+        try {
+             // Show dialog box
+            JOptionPane.showConfirmDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
+        }
+        catch (Exception e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
         }
     }
 
@@ -106,9 +146,8 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     private static List<GenericFileMetadata> mapToGenericFile(List<DriveItem> files) {
         return files.stream().
-                map(f-> new GenericFileMetadata(f.getName(), f.getWebUrl(), f.getId(), f.getSize().intValue())).
+                map(f-> new GenericFileMetadata(f.getName(), f.getWebUrl(), f.getId(), f.getSize().longValue())).
                 toList();
-
     }
 
     /*
@@ -137,7 +176,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
              */
 
             driveItems.addAll(getOneDriveFiles(startPath));
-
 
             removeFolders(driveItems);
 
@@ -290,9 +328,8 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      * Upload the file with list of duplicates to the home directory of Onedrive account. Max file upload size is 2GB.
      */
     @Override
-    public void uploadLogFile(File file) throws IOException, InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+    public void uploadLogFile(File file) throws IOException {
         InputStream fileStream = new FileInputStream(file);
-
         graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName() + ".csv:").content().put(fileStream);
     }
 }

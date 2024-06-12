@@ -25,8 +25,6 @@ import javax.swing.event.HyperlinkListener;
 
 public class DropboxDeduper implements DedupeFileAccessor {
 
-	private static boolean withRecursive;
-
 	//public static String startPath;
     private static final String ACCESS_TOKEN;
 
@@ -41,7 +39,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	private static final String appKey = "69rotl1nmd80etf";
 	private static final String appSecret = "nn93eef34q21gtf";
 	private static DbxClientV2 dropboxClient; // Client used to send requests to Dropbox
-//	private static Map<String, FileMetadata> originalFiles; // Keep the original file of each duplicate
+
 	public void init() {
 		dropboxClient = getDropboxClient();
 	}
@@ -136,7 +134,9 @@ public class DropboxDeduper implements DedupeFileAccessor {
 		return mapToGenericFiles(entries);
 	}
 
-	// Create a map of the duplicate files.
+	/*
+	 * Create a map of the duplicate files.
+	 */
 	public Map<String, List<GenericFileMetadata>> populateMap(List<GenericFileMetadata> files) {
 		Map<String, List<GenericFileMetadata>> fileMap = new HashMap<>();
 		GenericFileDeduplicator.totalFileCount = files.size();
@@ -156,7 +156,9 @@ public class DropboxDeduper implements DedupeFileAccessor {
 		return fileMap;
 	}
 
-
+	/*
+	 * Map Metadata objects to GenericFileMetadata objects using required data.
+	 */
 	public static List<GenericFileMetadata> mapToGenericFiles(List<Metadata> files) {
 		List<GenericFileMetadata> genericFiles = new ArrayList<>();
 		return files.stream()
@@ -177,7 +179,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	/*
 	 * Create a new folder to move duplicate files to.
 	 */
-	public String createNewFolder() {
+	private void createNewFolder() {
 		String folderName = getFolderName();
 		try {
 			dropboxClient.files().createFolderV2(folderName);
@@ -185,7 +187,6 @@ public class DropboxDeduper implements DedupeFileAccessor {
 		catch (Exception e) {
 			System.err.println("Error creating folder: " + e);
 		}
-		return folderName;
 	}
 
 	/*

@@ -11,10 +11,6 @@ package email.sing.tools.dropbox.deduper;
 import com.azure.identity.DeviceCodeCredential;
 import com.azure.identity.DeviceCodeCredentialBuilder;
 import com.azure.identity.DeviceCodeInfo;
-import com.microsoft.graph.core.models.IProgressCallback;
-import com.microsoft.graph.core.models.UploadResult;
-import com.microsoft.graph.core.tasks.LargeFileUploadTask;
-import com.microsoft.graph.drives.item.items.item.createuploadsession.CreateUploadSessionPostRequestBody;
 import com.microsoft.graph.models.*;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 
@@ -24,11 +20,9 @@ import javax.swing.event.HyperlinkListener;
 import java.awt.*;
 import java.io.*;
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
 public class OnedriveDeduper implements DedupeFileAccessor {
@@ -43,6 +37,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     private static final String[] graphUserScopes = { "user.read", "profile", "openid", "files.readwrite.all", "application.readwrite.all" };
     private static final String tenantId = "common";
 
+    /*
+     * Initialize graphClient and onedriveUser
+     */
     public void initializeGraphForUserAuth(Consumer<DeviceCodeInfo> challenge) {
         try {
             deviceCodeCredential = new DeviceCodeCredentialBuilder()
@@ -63,7 +60,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     public void init() {
         try {
             System.out.println("Initializing MSGraph client.");
-//            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
             initializeGraphForUserAuth(challenge -> {
                 String userCode = null;
                 try {
@@ -160,21 +156,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
             return getFiles(startPath);
         }
         else {
-            /*
-            List<DriveItem> driveItems = findDriveItemFiles(startPath);
-            assert driveItems != null;
-
-            for (DriveItem d : driveItems) {
-                // Check if DriveItem object is a folder.
-                if (d.getFolder() != null) {
-                    driveItems.addAll(driveItems.size() - 1, getFiles(d.getId(), true));
-                }
-            }
-
-
-            List<DriveItem> driveItems = findDriveItemFilesRecursively(startPath);
-             */
-
             driveItems.addAll(getOneDriveFiles(startPath));
 
             removeFolders(driveItems);
@@ -272,20 +253,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         }
 
         return fileMap;
-    }
-
-    /*
-     * Create folder to move duplicate files to.
-     */
-    public String createNewFolder() {
-        String folderName = "Duplicate Files - " + GenericFileDeduplicator.getCurrentDate();
-        // Create new folder with folderName
-        DriveItem driveItem = new DriveItem();
-        driveItem.setName(folderName);
-        Folder folder = new Folder();
-        driveItem.setFolder(folder);
-        DriveItem newFolder = graphClient.drives().byDriveId(driveId).items().byDriveItemId("/root:/").children().post(driveItem);
-        return newFolder.getId();
     }
 
     /*

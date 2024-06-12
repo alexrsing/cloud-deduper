@@ -3,7 +3,7 @@
  * Mr. Stutler
  * 11/3/2023
  *
- * Runner class for DropboxDeduper.
+ * Runner class for GenericFileDeduplicator.
  */
 
 package email.sing.tools.dropbox.deduper;
@@ -11,9 +11,9 @@ package email.sing.tools.dropbox.deduper;
 public class CloudDeduper {
 
 	public static void main(String[] args) throws Exception {
-		// Create an app object of DropboxDeduper class.
+		//Create object of GenericFileDeduplicator class.
 		GenericFileDeduplicator deduper = new GenericFileDeduplicator();
-		// Run init() and run() methods using app object.
+		// Run run() method using object.
 		deduper.run();
 	}
 }

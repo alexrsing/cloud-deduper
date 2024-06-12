@@ -68,6 +68,9 @@ public class GenericFileDeduplicator {
         displayFinalDialog();
     }
 
+    /*
+     * Initialize the dedupeFileAccessor object.
+     */
     private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {
         DedupeFileAccessor dedupeFileAccessor;
         if ("Dropbox".equals(service)) {

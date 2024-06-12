@@ -19,7 +19,5 @@ public interface DedupeFileAccessor {
 
     void uploadLogFile(File file) throws IOException, InvocationTargetException, IllegalAccessException, NoSuchMethodException;
 
-    String createNewFolder();
-
     Map<String, List<GenericFileMetadata>> populateMap(List<GenericFileMetadata> files);
 }

@@ -27,10 +27,9 @@ public class GenericFileDeduplicator {
     private static Map<String, List<GenericFileMetadata>> duplicateFiles;
     private static Map<String, GenericFileMetadata> originalFiles;
 
+    public static int totalFileCount;
 
-    // Find files from cloud service and fill CommonFileMetadata map.
     public void run() throws Exception {
-        /*
         int option = getUserPreferences();
 
         List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
@@ -40,17 +39,19 @@ public class GenericFileDeduplicator {
         if (option == 0 && confirmDelete() && listDeletedFiles()) {
             try {
                 dedupeFileAccessor.deleteFiles(duplicateFiles);
+                displayMessage("Files have been deleted.");
             }
             catch (Exception e) {
-                displayErrorMessage("Error deleting files.");
+                displayMessage("Error deleting files.");
             }
         }
         else if (option == 1) {
             try {
                 dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
+                displayMessage("Files have been moved.");
             }
             catch (Exception e) {
-                displayErrorMessage("Error moving files.");
+                displayMessage("Error moving files.");
             }
         }
 
@@ -58,22 +59,13 @@ public class GenericFileDeduplicator {
         File logFile = logDuplicateFiles();
         try {
             dedupeFileAccessor.uploadLogFile(logFile);
+            displayMessage("Log file has been uploaded to your home directory.");
         }
         catch (Exception e) {
-            displayErrorMessage("Error uploading log file.");
+            displayMessage("Error uploading log file.");
         }
 
         displayFinalDialog();
-
-         */
-
-
-        dedupeFileAccessor = createDedupeFileAccessor("Onedrive");
-        dedupeFileAccessor.init();
-        List<GenericFileMetadata> files = dedupeFileAccessor.getFiles("root:/Sample:", true);
-        duplicateFiles = dedupeFileAccessor.populateMap(files);
-        dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
-
     }
 
     private @NotNull DedupeFileAccessor createDedupeFileAccessor(String service) {
@@ -136,22 +128,6 @@ public class GenericFileDeduplicator {
     }
 
     /*
-     * Find the file size in the map.
-     */
-    private String findFileSize(int fileSize) {
-        if (duplicateFiles != null) {
-            for (String key : duplicateFiles.keySet()) {
-                for (GenericFileMetadata f : duplicateFiles.get(key)) {
-                    if (f.getFileSize() == fileSize) {
-                        return f.getContentHash();
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /*
      * Remove first file from each list in the files values.
      */
     private void keepOriginalFile() {
@@ -188,8 +164,8 @@ public class GenericFileDeduplicator {
      * tells user how many duplicates files were found out of the total number of files de-duplicated.
      */
     private void displayFinalDialog() {
-        int totalFiles = getFileMapSize();
-        JOptionPane.showMessageDialog(null, "Of " + totalFiles + ", " + duplicateFiles.size() + " duplicates have been found");
+        int totalDuplicates = getFileMapSize();
+        JOptionPane.showMessageDialog(null, "Of " + totalFileCount + " files, " + totalDuplicates + " duplicates have been found");
     }
 
     /*
@@ -245,9 +221,7 @@ public class GenericFileDeduplicator {
      * Create spreadsheet of duplicate files with original for reference.
      */
     private File logDuplicateFiles() {
-        // first create file object for file placed at location
-        // specified by filepath
-
+        // Create file for duplicates.
         File file = new File("Duplicate files log - " + getCurrentDate() + ".csv");
         try {
             // create FileWriter object with file as parameter
@@ -257,7 +231,7 @@ public class GenericFileDeduplicator {
             CSVWriter writer = new CSVWriter(outputFile);
 
             // Add header to csv
-            String[] header = {"-DUPLICATE FILE NAME-", "-DUPLICATE FILE LOCATION-", "-DUPLICATE FILE SIZE-", "-ORIGINAL FILE NAME-", "-ORIGINAL FILE LOCATION-", "-ORIGINAL FILE SIZE-"};
+            String[] header = {"DUPLICATE FILE NAME", "DUPLICATE FILE LOCATION/URL", "DUPLICATE FILE SIZE", "ORIGINAL FILE NAME", "ORIGINAL FILE LOCATION/URL", "ORIGINAL FILE SIZE"};
             writer.writeNext(header);
 
             String[] data = new String[6];
@@ -282,7 +256,7 @@ public class GenericFileDeduplicator {
         return file;
     }
 
-    public void displayErrorMessage(String message) {
+    public void displayMessage(String message) {
         JOptionPane.showMessageDialog(null, message);
     }
 

@@ -63,7 +63,7 @@ run {
     standardInput = System.in
 }
 
-/*
+
 jar {
     manifest {
         attributes 'Implementation-Title': "Cloud Deduper",
@@ -99,4 +99,4 @@ tasks.jpackage.doFirst {
         into("$buildDir/jpackage/$basePath/app")
     }
 }
- */
+

@@ -38,8 +38,8 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     @Override
     public void init() {
         try {
-            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
-//            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getUserCode()));
+//            Graph.initializeGraphForUserAuth(challenge -> System.out.println(challenge.getMessage()));
+            Graph.initializeGraphForUserAuth(challenge -> displayInitMessage(challenge.getUserCode()));
 
         } catch (Exception e)
         {
@@ -88,7 +88,10 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         ep.setBackground(label.getBackground());
 
         // Show dialog box
-        JOptionPane.showConfirmDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
+        if (option != 0) {
+            System.exit(0);
+        }
     }
 
     /*
@@ -103,8 +106,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
      */
     private static List<GenericFileMetadata> mapToGenericFile(List<DriveItem> files) {
         return files.stream().
-                map(f-> new GenericFileMetadata(f.getName(), f.getId(), f.getFile().getHashes().getSha256Hash(), f.getSize().intValue())).
+                map(f-> new GenericFileMetadata(f.getName(), f.getWebUrl(), f.getId(), f.getSize().intValue())).
                 toList();
+
     }
 
     /*
@@ -136,6 +140,9 @@ public class OnedriveDeduper implements DedupeFileAccessor {
 
 
             removeFolders(driveItems);
+
+            GenericFileDeduplicator.totalFileCount = driveItems.size();
+
             return mapToGenericFile(driveItems);
         }
     }
@@ -208,7 +215,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         }
     }
 
-
     /*
      * Create a map of the duplicate files.
      */
@@ -229,7 +235,6 @@ public class OnedriveDeduper implements DedupeFileAccessor {
 
         return fileMap;
     }
-
 
     /*
      * Create folder to move duplicate files to.
@@ -252,7 +257,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
     public void deleteFiles(Map<String, List<GenericFileMetadata>> files) {
         for (String key : files.keySet()) {
             for (GenericFileMetadata item : files.get(key)) {
-                graphClient.drives().byDriveId(driveId).items().byDriveItemId(item.getFileRoot()).delete();
+                graphClient.drives().byDriveId(driveId).items().byDriveItemId(item.getContentHash()).delete();
             }
         }
     }
@@ -267,7 +272,7 @@ public class OnedriveDeduper implements DedupeFileAccessor {
 
         for (String key : files.keySet()) {
             for (GenericFileMetadata f : files.get(key)) {
-                DriveItem currentDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getFileRoot()).get();
+                DriveItem currentDriveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(f.getContentHash()).get();
                 DriveItem driveItem = graphClient.drives().byDriveId(driveId).items().byDriveItemId(currentDriveItem.getId()).get();
                 ItemReference parentReference = new ItemReference();
                 parentReference.setId(newFolderDriveItem.getId());
@@ -281,62 +286,13 @@ public class OnedriveDeduper implements DedupeFileAccessor {
         }
     }
 
-    //        InputStream fileInputStream = new FileInputStream(file);
-//        UploadSession uploadSession = graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName()).createUploadSession().post();
-
     /*
-     * Upload the file with list of duplicates.
+     * Upload the file with list of duplicates to the home directory of Onedrive account. Max file upload size is 2GB.
      */
     @Override
     public void uploadLogFile(File file) throws IOException, InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         InputStream fileStream = new FileInputStream(file);
-        long streamSize = file.length();
 
-        graphClient.drives().byDriveId(driveId).items().byDriveItemId("").content().put(fileStream);
-
-        /*
-        // Set body of the upload session request
-        CreateUploadSessionPostRequestBody uploadSessionRequest = new CreateUploadSessionPostRequestBody();
-        DriveItemUploadableProperties properties = new DriveItemUploadableProperties();
-        properties.getAdditionalData().put("@microsoft.graph.conflictBehavior", "replace");
-        uploadSessionRequest.setItem(properties);
-
-        // Create an upload session
-        UploadSession uploadSession = graphClient.drives()
-                .byDriveId(driveId)
-                .items()
-                .byDriveItemId("")
-                .createUploadSession()
-                .post(uploadSessionRequest);
-
-        // Create the upload task
-        int maxSliceSize = 320 * 10;
-        LargeFileUploadTask<DriveItem> largeFileUploadTask = new LargeFileUploadTask<>(
-                graphClient.getRequestAdapter(),
-                uploadSession,
-                fileStream,
-                streamSize,
-                maxSliceSize,
-                DriveItem::createFromDiscriminatorValue);
-
-        int maxAttempts = 5;
-
-        // Create a callback used by the upload provider
-        IProgressCallback callback = (current, max) -> System.out.println(
-                String.format("Uploaded %d bytes of %d total bytes", current, max));
-
-        // Upload file
-        try {
-            UploadResult<DriveItem> uploadResult = largeFileUploadTask.upload(maxAttempts, callback);
-            if (uploadResult.isUploadSuccessful()) {
-                System.out.println("Upload complete");
-                System.out.println("Item ID: " + uploadResult.itemResponse.getId());
-            } else {
-                System.out.println("Upload failed");
-            }
-        } catch (CancellationException | IOException | InterruptedException ex) {
-            System.out.println("Error uploading: " + ex.getMessage());
-        }
-         */
+        graphClient.drives().byDriveId(driveId).items().byDriveItemId("root:/" + file.getName() + ".csv:").content().put(fileStream);
     }
 }

@@ -79,6 +79,7 @@ public class DropboxDeduper implements DedupeFileAccessor {
 	 * Display the URL with directions to get access code.
 	 */
 	private static String getDropboxAccessCode(String url) {
+		/*
 		JLabel label = new JLabel();
 		Font font = label.getFont();
 
@@ -109,9 +110,16 @@ public class DropboxDeduper implements DedupeFileAccessor {
 		});
 		ep.setEditable(false);
 		ep.setBackground(label.getBackground());
+		 */
 
+		System.out.println("Go to " + url + " and click allow and copy the authorization code.");
+
+		Scanner scan = new Scanner(System.in);
+		String accessCode = scan.next();
+
+		return accessCode;
 		// Show dialog box
-        return JOptionPane.showInputDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
+        //return JOptionPane.showInputDialog(null, ep, "File De-duplicator", JOptionPane.OK_CANCEL_OPTION);
 	}
 
 	/*

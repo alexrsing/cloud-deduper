@@ -68,7 +68,8 @@ public class OnedriveDeduper implements DedupeFileAccessor {
                     throw new RuntimeException(e);
                 }
                 System.out.println("Usercode: " + userCode);
-                displayInitMessage(userCode);
+//                displayInitMessage(userCode);
+                System.out.println(userCode);
             });
 
         } catch (Exception e)

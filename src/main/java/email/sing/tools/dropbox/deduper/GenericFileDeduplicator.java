@@ -8,6 +8,7 @@
 
 package email.sing.tools.dropbox.deduper;
 
+import com.dropbox.core.v2.teamlog.UserTagsAddedDetails;
 import com.opencsv.CSVWriter;
 import org.jetbrains.annotations.NotNull;
 
@@ -19,9 +20,9 @@ import java.util.*;
 
 public class GenericFileDeduplicator {
 
-    private static String cloudService = "";
-    private static boolean withRecursion;
-    public static String startPath;
+//    private static String cloudService = "";
+//    private static boolean withRecursion;
+//    public static String startPath;
     DedupeFileAccessor dedupeFileAccessor;
 
     private static Map<String, List<GenericFileMetadata>> duplicateFiles;
@@ -29,29 +30,63 @@ public class GenericFileDeduplicator {
 
     public static int totalFileCount;
 
-    public void run() throws Exception {
-        int option = getUserPreferences();
+    public void init() throws Exception {
+        Scanner scan = new Scanner(System.in);
+
+//        String cloudService = "";
+//        System.out.println("What cloud service would you like to use?");
+        String cloudService = "Dropbox";
+
+//        boolean withRecursion;
+//        System.out.println("Would you like to search your files recursively?");
+        boolean withRecursion = true;
+
+        String startPath = new String();
+        if (cloudService.equals("Dropbox")) {
+            startPath = "";
+        }
+        else if (cloudService.equals("Onedrive")){
+            startPath = "Onedrive";
+        }
+
+        int option;
+        System.out.println("What would you like to do?");
+        option = Integer.valueOf(scan.next());
+
+        run(cloudService, startPath, withRecursion, option);
+    }
+
+    private void run(String cloudService, String startPath, boolean withRecursion, int option) throws Exception {
+        //int option = getUserPreferences();
+
+        dedupeFileAccessor = createDedupeFileAccessor(cloudService);
+        dedupeFileAccessor.init();
 
         List<GenericFileMetadata> files = dedupeFileAccessor.getFiles(startPath, withRecursion);
         duplicateFiles = dedupeFileAccessor.populateMap(files);
         keepOriginalFile();
 
-        if (option == 0 && confirmDelete() && listDeletedFiles()) {
+//        if (option == 0 && confirmDelete() && listDeletedFiles()) {
+          if (option == 0) {
             try {
                 dedupeFileAccessor.deleteFiles(duplicateFiles);
-                displayMessage("Files have been deleted.");
+                //displayMessage("Files have been deleted.");
+                System.out.println("Files have been deleted.");
             }
             catch (Exception e) {
-                displayMessage("Error deleting files.");
+//                displayMessage("Error deleting files.");
+                System.out.println("Error deleting files.");
             }
         }
         else if (option == 1) {
             try {
                 dedupeFileAccessor.moveFilesToFolder(duplicateFiles);
-                displayMessage("Files have been moved.");
+//                displayMessage("Files have been moved.");
+                System.out.println("Files have been moved.");
             }
             catch (Exception e) {
-                displayMessage("Error moving files.");
+//                displayMessage("Error moving files.");
+                System.out.println("Error moving files.");
             }
         }
 
@@ -59,13 +94,15 @@ public class GenericFileDeduplicator {
         File logFile = logDuplicateFiles();
         try {
             dedupeFileAccessor.uploadLogFile(logFile);
-            displayMessage("Log file has been uploaded to your home directory.");
+//            displayMessage("Log file has been uploaded to your home directory.");
+            System.out.println("Log file has been uploaded to your home directory.");
         }
         catch (Exception e) {
-            displayMessage("Error uploading log file.");
+//            displayMessage("Error uploading log file.");
+            System.out.println("Error uploading log file.");
         }
 
-        displayFinalDialog();
+//        displayFinalDialog();
     }
 
     /*
@@ -97,12 +134,15 @@ public class GenericFileDeduplicator {
 
     /*
      * UI for app
-     */
+
+
     private int getUserPreferences() throws Exception {
         String title = "File De-duplicator";
         String[] serviceOptions = {"Dropbox", "Onedrive"};
-        int cs = JOptionPane.showOptionDialog(null, "What cloud service would you like to use?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
-        cloudService = serviceOptions[cs];
+        //int cs = JOptionPane.showOptionDialog(null, "What cloud service would you like to use?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, serviceOptions, serviceOptions[0]);
+        //cloudService = serviceOptions[cs];
+
+        cloudService = "Dropbox";
 
         dedupeFileAccessor = createDedupeFileAccessor(cloudService);
         dedupeFileAccessor.init();
@@ -110,8 +150,13 @@ public class GenericFileDeduplicator {
         // While the startPath is null or does not exist, keep asking.
         startPath = JOptionPane.showInputDialog(null, "Please enter the directory path that you want to de-duplicate (In the form \"/folder/subfolder\").\n If you are using Onedrive, enter in the form \"root:/Folder1/Folder2:\" (Leave blank for the home directory):", title, JOptionPane.QUESTION_MESSAGE);
 
+        startPath = "";
+
         String[] fileOptions = {"Delete duplicate files", "Move duplicate files to folder", "Show duplicate names in file"};
         int selection = JOptionPane.showOptionDialog(null, "What would you like to do?", title, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, fileOptions, fileOptions[0]);
+
+        int selection = 2;
+
 
         if (selection == -1) {
             System.exit(0);
@@ -120,7 +165,9 @@ public class GenericFileDeduplicator {
         String[] recursiveOptions = {"Cancel", "No", "Yes"};
         int recursive = JOptionPane.showOptionDialog(null, "Would you like to do this for all folders and sub-folders in this directory?", "Dropbox De-duplicator",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, recursiveOptions, recursiveOptions[0]);
-        if (recursive == 0) {
+
+
+    if (recursive == 0) {
             System.exit(0);
         }
 
@@ -128,6 +175,7 @@ public class GenericFileDeduplicator {
 
         return selection;
     }
+    */
 
     /*
      * Remove first file from each list in the files values.

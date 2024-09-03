@@ -14,6 +14,6 @@ public class CloudDeduper {
 		//Create object of GenericFileDeduplicator class.
 		GenericFileDeduplicator deduper = new GenericFileDeduplicator();
 		// Run run() method using object.
-		deduper.run();
+		deduper.init();
 	}
 }
